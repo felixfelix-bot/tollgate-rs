@@ -13,6 +13,11 @@ default-run = "tollgate"
 name = "tollgate"
 path = "src/main.rs"
 
+[features]
+# Spilman payment channels (streaming Cashu). Off by default: the dependency is
+# pinned to a git rev and costs a full extra dependency subtree to build.
+spilman = ["dep:cdk-spilman"]
+
 [dependencies]
 tollgate-core = { workspace = true }
 tollgate-protocol = { workspace = true }
@@ -34,6 +39,13 @@ serde_json = { workspace = true }
 bytes = { workspace = true }
 # tolltop TUI (also pulls crossterm as its default backend).
 ratatui = "0.29"
+
+# cdk-spilman: Spilman payment channels (see `src/spilman/`). Pinned to the rev
+# validated end-to-end (fund → pay → close) against the test mint, NOT the
+# crates.io 0.15.1 release: the release conflicts with the workspace `cashu` rev
+# below. It builds on that same `cashu` rev, so the two type-unify — do not bump
+# one without the other.
+cdk-spilman = { git = "https://github.com/SatsAndSports/cashu_spilman_channels", rev = "bafc38f220e46289bebf157014ab1129c7deac63", default-features = false, optional = true }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

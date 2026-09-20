@@ -8,3 +8,8 @@
 
 pub mod control;
 pub mod status;
+
+/// Spilman payment channels (streaming Cashu) — the `SpilmanHost` adapter that
+/// lets this node accept channel payments. Enabled with the `spilman` feature.
+#[cfg(feature = "spilman")]
+pub mod spilman;
