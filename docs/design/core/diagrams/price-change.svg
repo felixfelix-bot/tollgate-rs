@@ -48,13 +48,13 @@
   <rect width="720" height="540" rx="8" class="bg"/>
 
   <!-- Title -->
-  <text x="360" y="28" text-anchor="middle" class="title">Price Change at Metering Interval</text>
-  <text x="360" y="46" text-anchor="middle" class="subtitle">New pricing piggybacked on MeteringReport — accept by continuing, reject by closing</text>
+  <text x="360" y="28" text-anchor="middle" class="title">Multiplier Change</text>
+  <text x="360" y="46" text-anchor="middle" class="subtitle">Revised multiplier sent as a new Offer — accept by buying again, reject by closing</text>
 
   <!-- Node headers -->
   <rect x="110" y="65" width="100" height="42" class="node" stroke-width="2" rx="6"/>
   <text x="160" y="85" text-anchor="middle" class="nlabel">Peer A</text>
-  <text x="160" y="98" text-anchor="middle" class="nrole">Wants new price</text>
+  <text x="160" y="98" text-anchor="middle" class="nrole">Wants new multiplier</text>
 
   <rect x="510" y="65" width="100" height="42" class="node" stroke-width="2" rx="6"/>
   <text x="560" y="85" text-anchor="middle" class="nlabel">Peer B</text>
@@ -69,8 +69,8 @@
   <text x="40" y="148" text-anchor="middle" class="annot">Update</text>
 
   <line x1="170" y1="140" x2="548" y2="140" stroke="#5080c0" stroke-width="1.5" marker-end="url(#aR)"/>
-  <text x="360" y="133" text-anchor="middle" class="alabel" fill="#5080c0">MeteringReport (new_product_id + new_pricing)</text>
-  <text x="360" y="158" text-anchor="middle" class="annot">B inspects field 4-5: a new price is on offer</text>
+  <text x="360" y="133" text-anchor="middle" class="alabel" fill="#5080c0">Offer (new received multiplier)</text>
+  <text x="360" y="158" text-anchor="middle" class="annot">B inspects field 4: a new multiplier is on offer</text>
 
   <line x1="70" y1="178" x2="660" y2="178" class="sep"/>
 
@@ -79,10 +79,10 @@
   <text x="92" y="210" class="altlabel">alt: ACCEPT (continue)</text>
 
   <line x1="550" y1="240" x2="172" y2="240" stroke="#d0a040" stroke-width="1.5" marker-end="url(#aL)"/>
-  <text x="360" y="233" text-anchor="middle" class="alabel" fill="#d0a040">MeteringReport (continues normally)</text>
+  <text x="360" y="233" text-anchor="middle" class="alabel" fill="#d0a040">TopUp (next grant, at the new multiplier)</text>
 
   <text x="360" y="263" text-anchor="middle" class="annot">B's continued participation = implicit acceptance</text>
-  <text x="360" y="280" text-anchor="middle" class="annot">next interval uses new price</text>
+  <text x="360" y="280" text-anchor="middle" class="annot">grants already bought keep the old multiplier</text>
   <text x="360" y="298" text-anchor="middle" class="annot">no extra round-trip</text>
 
   <!-- Alt branch: REJECT -->
@@ -96,9 +96,9 @@
   <text x="360" y="393" text-anchor="middle" class="alabel" fill="#40a060">CloseAck</text>
 
   <text x="360" y="425" text-anchor="middle" class="annot">channel settles with mint</text>
-  <text x="360" y="442" text-anchor="middle" class="annot">B may renegotiate at the new price or disconnect</text>
-  <text x="360" y="468" text-anchor="middle" class="annot">(no metered service to B until renegotiation)</text>
+  <text x="360" y="442" text-anchor="middle" class="annot">B may renegotiate at the new multiplier or disconnect</text>
+  <text x="360" y="468" text-anchor="middle" class="annot">(B falls back to the minimum flow allowance)</text>
 
   <!-- Caption -->
-  <text x="360" y="525" text-anchor="middle" class="caption">Each metering interval is a renegotiation point — peer always has the option to walk away</text>
+  <text x="360" y="525" text-anchor="middle" class="caption">A grant already bought is never repriced — the peer always has the option to walk away</text>
 </svg>

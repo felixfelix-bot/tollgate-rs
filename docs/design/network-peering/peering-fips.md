@@ -13,7 +13,7 @@ FIPS provides everything TollGate needs from a network layer:
 
 `tollgate-net` and the FIPS daemon are independent binaries communicating over FIPS's control socket. FIPS exposes generic per-peer capabilities (forwarding policy, lifecycle events, livestreamed rx/tx counters, MMP metrics); `tollgate-net` consumes them.
 
-Per-peer counters are pushed as a livestream subscription, so `tollgate-net` always has fresh values at metering-interval snapshot time. At a 5-second metering interval, socket overhead is negligible.
+Per-peer counters are pushed as a livestream subscription, so `tollgate-net` always has a fresh value to draw each peer's grant down against. Socket overhead is negligible.
 
 ---
 
@@ -44,9 +44,9 @@ TollGate hooks into FIPS at five points:
 
   ① Per-peer forwarding policy (local_only / full)
   ② Bloom filter exclusion (inferred from policy)
-  ③ MMP metrics for dynamic pricing
+  ③ MMP metrics for operator visibility
   ④ Peer connect/disconnect callbacks
-  ⑤ TollGate message transport (HTTP over IPv6)
+  ⑤ TollGate message transport (raw TCP over IPv6)
 ```
 </details>
 
@@ -58,7 +58,7 @@ TollGate sets a per-peer forwarding policy in FIPS. For blocked peers (`None`, `
 - Traffic **from** this peer addressed **to other nodes** (transit): Dropped
 - Traffic **from other nodes** destined **to or through** this peer: Not forwarded to this peer
 
-For allowed peers (`Active`, `ZeroPrice`), FIPS forwards normally — no restrictions.
+For allowed peers (`Active`, `Free`), FIPS forwards normally — no restrictions.
 
 This is a data-plane policy, not a control-plane hook. FIPS simply needs to know: "for peer X, restrict to local-only" or "for peer X, forward normally."
 
@@ -69,7 +69,7 @@ This is a data-plane policy, not a control-plane hook. FIPS simply needs to know
 TollGate controls which peers appear in bloom filter computation. Unpaid peers (`None`, `Suspended`) are excluded — their node_addr is not added to the bloom filter advertised to other peers. This prevents traffic from being routed toward a peer that will have it dropped at the gate.
 
 When a peer's access level changes:
-- `None` -> `Active`/`ZeroPrice`: Add to bloom filters immediately, trigger FilterAnnounce
+- `None` -> `Active`/`Free`: Add to bloom filters immediately, trigger FilterAnnounce
 - `Active` -> `Suspended`: Remove from bloom filters **after a delay** (default: 30 seconds) to avoid flapping. If the peer recovers (tops up, funds new channel) within the delay, the removal is cancelled and the peer stays visible. This prevents rapid bloom filter churn when a peer temporarily exhausts balance.
 - `Suspended` -> `Active`: Re-add to bloom filters immediately (cancel any pending removal)
 
@@ -77,12 +77,12 @@ When a peer's access level changes:
 
 ### 3. MMP Metrics Feed
 
-TollGate consumes FIPS MMP metrics for dynamic pricing. Per-peer metrics are available after the Noise IK handshake completes and MMP starts reporting:
+TollGate exposes FIPS MMP metrics through `peer_metrics()`. They are **not** inputs to any price — delivery costs one voucher per unit ([tollgate-vouchers.md](../core/tollgate-vouchers.md)), and metrics are peer-influenced, so pricing from them would let a peer price itself. They exist for operator visibility and capacity decisions. Per-peer metrics are available after the Noise IK handshake completes and MMP starts reporting:
 
 | MMP Metric | TollGate use |
 |-----------|-------------|
-| `srtt_ms` | Latency-based pricing adjustment |
-| `loss_rate` | Loss-based pricing (wasted forwarding effort) |
+| `srtt_ms` | Link latency; operator visibility |
+| `loss_rate` | Wasted forwarding effort; operator visibility |
 | `etx` | Direct forwarding cost metric |
 | `smoothed_etx` | Stable cost baseline |
 | `goodput_bps` | Capacity utilization / congestion signal |
@@ -102,7 +102,9 @@ FIPS notifies TollGate when peers connect and disconnect:
 
 ### 5. TollGate Protocol Transport
 
-Initially, TollGate protocol messages travel over **HTTP through the FIPS IPv6 adapter**. FIPS provides an IPv6 TUN interface (`fips0`) that maps each peer's npub to an `fd00::/8` address. TollGate uses HTTP polling or WebSocket over this IPv6 interface — the same transport options as IP peering, but riding on the FIPS mesh.
+Initially, TollGate protocol messages travel over **raw TCP through the FIPS IPv6 adapter**. FIPS provides an IPv6 TUN interface (`fips0`) that maps each peer's npub to an `fd00::/8` address, and TollGate opens a TCP connection to port 4747 on it — the same transport as IP peering, riding on the FIPS mesh.
+
+Nothing needs to be wrapped in TLS: the Noise IK handshake has already authenticated and encrypted the link before TollGate sees the peer. This is what lets the transport stay as thin as it is.
 
 This approach works today without any FIPS modifications to the session layer.
 
@@ -126,7 +128,7 @@ fn set_peer_access(&self, peer: &Pubkey, access: AccessLevel) -> Result<(), Adap
             // Bloom filter exclusion is inferred — restricted peers are excluded
             self.node.set_peer_forwarding_policy(node_addr, ForwardingPolicy::LocalOnly);
         }
-        AccessLevel::Active | AccessLevel::ZeroPrice => {
+        AccessLevel::Active | AccessLevel::Free => {
             // Allow full forwarding for this peer
             // Bloom filter inclusion is inferred — allowed peers are included
             self.node.set_peer_forwarding_policy(node_addr, ForwardingPolicy::Full);
@@ -147,7 +149,7 @@ fn subscribe_meter(&self, peer: &Pubkey) -> Result<MeterStream, AdapterError> {
     let node_addr = NodeAddr::from_pubkey(peer);
 
     // Subscribe to FIPS's per-peer counter livestream over the control socket.
-    // Each push updates the watch channel; tollgate-core snapshots at metering interval.
+    // Each push updates the watch channel; tollgate-core draws the peer's grant down against it.
     let (delivered_tx, delivered) = watch::channel(0);
     let (received_tx, received) = watch::channel(0);
     self.subscribe_peer_counters(node_addr, delivered_tx, received_tx);
@@ -186,42 +188,42 @@ Backed by a streaming subscription on the FIPS control socket, not per-call poll
 FIPS peers are identified by:
 - **Public key**: secp256k1 compressed public key (33 bytes) — same as TollGate's peer identifier
 - **node_addr**: SHA-256 hash of public key, truncated to 16 bytes — used in packet headers and bloom filters
+- **FIPS address**: `0xfd` followed by the first 15 bytes of the node_addr — the peer's IPv6 address on `fips0`
 
-The adapter maps between the two as needed. TollGate protocol uses pubkey; FIPS forwarding uses node_addr. The mapping is deterministic (`node_addr = SHA256(pubkey)[..16]`).
+The adapter maps between them as needed. TollGate protocol uses pubkey; FIPS forwarding uses node_addr; the control plane arrives from the FIPS address. All three mappings are deterministic and derived locally (`crates/tollgate-net/src/fips.rs`), so nothing has to be asked of the daemon.
+
+### Verifying the peer
+
+An `Announce` is unauthenticated — it is the first thing a stranger says. On plain IP there is nothing to check it against, and an adapter that binds pubkey to address does so on the peer's own say-so: claim a paying peer's key and your address rides their grant.
+
+A FIPS address is a commitment to a key. The mesh routes to it only for the node that completed the Noise IK handshake for that key, so an impostor cannot receive at the address it would have to claim. `forwarding.mode: fips` therefore turns on the check (`wire::Identify::Fips`): every control connection, accepted or dialled, must come from the FIPS address of the key it announces, or it is dropped before a session exists.
+
+Two consequences worth stating:
+
+- The control plane has to be bound where mesh peers reach it — `network.listen` on the node's `fips0` address, or on `[::]`. A connection arriving on plain IPv4 is refused under this mode rather than waved through, which is the point: otherwise a node that also answered on its uplink would have a way in that skips the handshake.
+- `tollgated` and `fipsd` on the same node must run the same key. The check compares a TollGate pubkey against a FIPS address; if the two daemons hold different identities, every peer's derived address is somebody else's.
 
 ---
 
-## Dynamic Pricing with MMP
+## What MMP Metrics Are Good For
 
-FIPS MMP provides the richest metric set of any TollGate deployment target. The pricing engine can use:
+FIPS MMP provides the richest metric set of any TollGate deployment target.
+An earlier design fed it straight into a pricing formula — `price = base x
+etx x (1 + srtt_ms / 100)`, mirroring FIPS's own link cost. That is gone,
+and deliberately so: **the peer being priced is the peer that influences the
+metrics**, so a peer could degrade its own link to move its own price. Under
+vouchers there is no formula to attack, because delivery has no price.
 
-### Cost-Plus Pricing (Recommended Default)
+What the metrics remain good for:
 
-```
-price = base_price x etx x (1 + srtt_ms / 100)
-```
-
-This mirrors FIPS's own link cost formula (`link_cost = etx x (1 + srtt_ms / 100)`). Higher ETX or latency = higher forwarding cost = higher price. The operator sets `base_price`; the formula scales it by actual link quality.
-
-### Congestion-Aware Pricing
-
-```
-if goodput_trend == "falling" and loss_trend == "rising":
-    price *= congestion_multiplier  // e.g., 1.5x
-```
-
-When MMP detects degrading link quality (falling goodput, rising loss), the node raises prices to reduce demand. As conditions improve, prices drop back.
-
-### Quality-Tiered Pricing
-
-Use MMP metrics to classify link quality and apply different product prices:
-
-| Quality tier | Conditions | Price |
-|-------------|------------|-------|
-| Premium | loss < 1%, SRTT < 10ms | Highest |
-| Standard | loss < 5%, SRTT < 50ms | Medium |
-| Economy | loss < 10%, SRTT < 200ms | Lowest |
-| Degraded | loss >= 10% or SRTT >= 200ms | Minimum / negative |
+- **Operator visibility.** Which links are healthy, which are degrading.
+- **Capacity decisions.** How much to issue vouchers against, and how fast
+  to let a peer draw them against a grant
+  ([tollgate-vouchers.md](../core/tollgate-vouchers.md)).
+- **Deciding what to sell vouchers for.** An operator watching its own links
+  degrade may choose to issue less or price higher on the market. That is a
+  human or policy decision outside the protocol, not a formula the
+  counterparty can manipulate.
 
 ---
 
@@ -252,8 +254,9 @@ The following FIPS modifications are required for TollGate integration. Full det
 | Metrics | MMP (SRTT, loss, ETX, goodput, jitter) — control-socket subscription | None / coarse |
 | Peer discovery | Automatic (FIPS mesh protocol) | Dynamic probing / static |
 | Authentication | Noise IK (automatic) | Unauthenticated (default) |
-| Message transport | HTTP over IPv6 adapter (initially), FSP port (future) | HTTP polling / WebSocket |
-| Control plane overhead | Negligible at 5s metering interval; livestreamed counters | Per-peer firewall rule installs/removes |
+| Announced identity | Checked against the address it arrives from | Taken on trust |
+| Message transport | Raw TCP over IPv6 adapter (initially), FSP port (future) | Raw TCP, or HTTP/WS if a network requires it |
+| Control plane overhead | Negligible; livestreamed counters | Per-peer firewall rule installs/removes |
 
 ---
 
@@ -266,12 +269,31 @@ The following FIPS modifications are required for TollGate integration. Full det
 | Forwarding policy | Per-peer `local_only` or `full`, enforced by FIPS | Simple data-plane policy, not a control-plane hook |
 | Default new-peer policy | `local_only` | Closes race window between FIPS auth and TollGate detection |
 | Bloom filter control | Inferred from forwarding policy, with 30s removal delay | Prevents flapping on temporary balance exhaustion |
-| Metering counters | Per-peer watch channels from FIPS | Continuous push, snapshot at metering interval |
+| Metering counters | Per-peer watch channels from FIPS | Continuous push, drawn against the peer's grant |
 | Metrics | Streaming subscription on the control socket | Pricing engine reads cached values; no per-call IPC |
-| Message transport (initial) | HTTP over FIPS IPv6 adapter | Works today, no FIPS session layer changes needed |
-| Message transport (future) | Native FSP port | Optimization, eliminates HTTP overhead |
-| Default pricing strategy | Cost-plus using ETX and SRTT | Mirrors FIPS's own link cost formula |
+| Message transport (initial) | Raw TCP over the FIPS IPv6 adapter | Works today with no FIPS session-layer changes, and needs no TLS — Noise IK already encrypts the link |
+| Message transport (future) | Native FSP port | Optimization; removes the TCP handshake per session |
+| MMP metrics | Exposed for visibility, never an input to price | The peer influences its own metrics, so pricing from them lets it price itself |
 | Peer identification | pubkey <-> node_addr mapping | Deterministic, same keypair serves both |
+
+---
+
+## Per-Peer Rate
+
+**Not yet expressible over FIPS.** A grant buys a rate, and the control-socket
+surface FIPS exposes today is a binary forwarding policy — `local_only` or
+`full` — which cannot say 3.12 MiB/s.
+
+Shaping outside FIPS only reaches part of the traffic: each node is a distinct
+`fd00::/8` address on the TUN interface, so `tc` there can shape what terminates
+at or originates from this node, but **transit never traverses the TUN** and
+transit is what a gateway sells.
+
+So this is a FIPS-side change, requested as feature 2 in
+[FIPS_FEATURE_REQUESTS.md](../FIPS_FEATURE_REQUESTS.md). Until it lands, a
+TollGate node over FIPS can gate delivery but cannot deliver a bought rate, and
+the IP adapter ([peering-ip.md](peering-ip.md)) is the only substrate where the
+full model runs.
 
 ---
 

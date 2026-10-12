@@ -103,6 +103,6 @@
   <text x="650" y="230" text-anchor="middle" class="annot">charging</text>
 
   <!-- Carryover example -->
-  <text x="560" y="255" text-anchor="middle" class="elabel">e.g. 2 sats remain + 5 sat settlement</text>
+  <text x="560" y="255" text-anchor="middle" class="elabel">e.g. 2 vouchers remain + 5 voucher settlement</text>
   <text x="560" y="268" text-anchor="middle" class="elabel">= 2 to old, 3 to new</text>
 </svg>

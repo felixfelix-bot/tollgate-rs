@@ -1,0 +1,84 @@
+# TollGate node configuration.
+#
+# What is here is enough to run: the node comes up, peers with anything that
+# dials it, and meters a socket of its own. What it will not do until you fill
+# in the market section is sell anything.
+
+identity:
+  # Written by the installer, because a node that generated a new key on every
+  # start would be a new node on every start — its peers would not recognise
+  # it, and the vouchers they hold would be claims on an issuer that no longer
+  # exists.
+  secret_key: null
+
+mint:
+  # This node's own mint, which peers fund channels against. It has to be
+  # reachable *by them*, so put the address a peer sees here.
+  url: "http://127.0.0.1:3338"
+  listen: "127.0.0.1:3338"
+  unit: "byte"
+
+access:
+  minimum_flow:
+    enabled: true
+    bytes_per_second: 4096
+
+market:
+  # What this node takes as payment, and what a unit of it buys. Nothing is
+  # sold until at least one issuer is listed.
+  #
+  # accept:
+  #   - mint: "https://mint.minibits.cash/Bitcoin"
+  #     unit: sat
+  #     bytes_per_unit: 1000000
+
+wallet:
+  # Where this node buys the money it pays its own upstream with, and where it
+  # keeps what it is paid. Top it up from `tolltop`, on the wallet tab.
+  mint: "https://mint.minibits.cash/Bitcoin"
+  unit: sat
+  # The balance is bearer tokens: this file *is* the money.
+  file: "/usr/local/var/lib/tollgate/wallet.sqlite"
+
+buying:
+  # How much this node wants from every peer, in bytes per second, whether or
+  # not anything is asking for it. Zero means it buys nothing on its own.
+  #
+  # This is what makes a Mac pay a router automatically: set it, and the node
+  # keeps a grant in force at that rate for as long as it holds money. It is a
+  # standing order and it spends: against a router at the packaged price —
+  # 1000 sat for an hour at 5 MB/s — 2 MB/s costs about 9,600 sat a day and
+  # 5 MB/s about 24,000, used or not.
+  #
+  # What is bought is `demand` times `headroom_pct`, so at the default 125 a
+  # demand of 2000000 buys 2.5 MB/s. Set the headroom to 100 to buy exactly
+  # what is asked for.
+  #
+  # demand: 2000000
+
+forwarding:
+  # macOS has no nftables and no tc, so the kernel forwarding path cannot be
+  # gated the way it is on a router. This mode meters and shapes a socket of
+  # its own instead: the protocol, the payments and the shaping are real, and
+  # nobody else's packets cross it. Right for developing against, for watching
+  # with tolltop, and for a node that buys transit rather than selling it.
+  mode: loopback
+
+network:
+  # Loopback by default: nothing needs to reach this node until it is peering.
+  # A node that dials a router on the LAN wants an address that router can
+  # answer on — `0.0.0.0:4747` — because the router dials back to deliver.
+  listen: "127.0.0.1:4747"
+
+peers:
+  # The router this node buys from. Two things are needed and neither can be
+  # guessed: its public key, which is how a peer is named, and where to reach
+  # it. Read the key off the router with
+  #
+  #     ssh root@192.168.1.1 tollgated --config /etc/tollgate/tollgate.yaml --show-identity
+  #
+  # and put it here. Without an entry this node peers with nobody, which is the
+  # right default for something installed and not yet pointed anywhere.
+  #
+  # "02f383c916faa702f91b5e836ed6f12d5f80fb1752ff4db28e6e77997036befd74":
+  #   endpoint: "192.168.1.1:4747"

@@ -1,0 +1,47 @@
+# A sat-denominated Cashu mint, standing in for the likes of minibits.
+#
+# It is the money in these tests: a client mints sats here and swaps them at a
+# gateway's market for byte vouchers. The backend is cdk's fake wallet, which
+# writes real bolt11 invoices and pays them itself — so "the client has sats"
+# needs no Lightning node, while everything downstream of it is a real mint
+# with real keysets and a real spent-proof set.
+[info]
+url = "http://sat-mint:8085"
+listen_host = "0.0.0.0"
+listen_port = 8085
+# Fixed, so a restart keeps the same keyset and tokens minted before it stay
+# spendable.
+mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+
+[info.quote_ttl]
+mint_ttl = 600
+melt_ttl = 120
+
+[info.http_cache]
+backend = "memory"
+ttl = 60
+tti = 60
+
+[database]
+engine = "sqlite"
+
+[ln]
+ln_backend = "fakewallet"
+unit = "sat"
+# Stated rather than defaulted: this build requires all four, and the ceiling
+# has to clear what a whole channel costs — a gigabyte at a megabyte per sat is
+# a thousand of them.
+min_mint = 1
+max_mint = 500000
+min_melt = 1
+max_melt = 500000
+
+[fake_wallet]
+fee_percent = 0.0
+reserve_fee_min = 0
+# Pay instantly. The delay simulates a Lightning hop, and a node that buys
+# money for each channel it funds would spend seconds of a rollover waiting on
+# it — which is a real problem to solve with a held balance rather than one to
+# reproduce in every test.
+min_delay_time = 0
+max_delay_time = 0

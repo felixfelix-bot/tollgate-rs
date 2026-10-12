@@ -1,0 +1,61 @@
+#!/bin/sh
+# TollGate first-boot setup. Runs once after installation, then deletes itself.
+
+CONFIG=/etc/tollgate/tollgate.yaml
+
+# ---------------------------------------------------------------------------
+# 1. Identity
+# ---------------------------------------------------------------------------
+# A node that generated a fresh key on every start would be a different node
+# on every start: its peers would not recognise it, and the vouchers they hold
+# would be claims on an issuer that no longer exists. So one is generated here,
+# once, and written into the config that sysupgrade keeps.
+if ! grep -qE '^\s*secret_key:\s*"[0-9a-f]{64}"' "$CONFIG" 2>/dev/null; then
+	SECRET="$(/usr/bin/tollgated --show-identity 2>/dev/null | awk '/^secret_key:/ { print $2 }')"
+	if [ -n "$SECRET" ]; then
+		sed -i "s|^\(\s*\)secret_key:.*|\1secret_key: \"$SECRET\"|" "$CONFIG"
+		chmod 0600 "$CONFIG"
+		logger -t tollgate "generated a node identity"
+	else
+		logger -t tollgate "could not generate an identity; edit $CONFIG by hand"
+	fi
+fi
+
+# ---------------------------------------------------------------------------
+# 2. The mint has to be reachable by peers
+# ---------------------------------------------------------------------------
+# A peer funds its channel against this node's mint, so the URL has to be one
+# the peer can reach — which is this router's LAN address, not localhost.
+LAN_IP="$(uci -q get network.lan.ipaddr)"
+if [ -n "$LAN_IP" ]; then
+	sed -i "s|^\(\s*\)url: \"http://192.168.1.1:3338\"|\1url: \"http://$LAN_IP:3338\"|" "$CONFIG"
+	logger -t tollgate "mint advertised at http://$LAN_IP:3338"
+fi
+
+# ---------------------------------------------------------------------------
+# 3. Firewall
+# ---------------------------------------------------------------------------
+# Peers reach the control plane and the mint on the LAN side. Both are how a
+# peer pays; neither is any use to it if the router drops the connection.
+if ! uci -q show firewall | grep -q "tollgate"; then
+	uci -q batch <<-UCI
+		set firewall.tollgate=rule
+		set firewall.tollgate.name='Allow-TollGate'
+		set firewall.tollgate.src='lan'
+		set firewall.tollgate.proto='tcp'
+		set firewall.tollgate.dest_port='4747 3338'
+		set firewall.tollgate.target='ACCEPT'
+		commit firewall
+	UCI
+	/etc/init.d/firewall reload >/dev/null 2>&1 || true
+	logger -t tollgate "opened 4747 and 3338 on the lan zone"
+fi
+
+# ---------------------------------------------------------------------------
+# 4. Forwarding
+# ---------------------------------------------------------------------------
+# Selling transit means forwarding somebody else's packets, which a router
+# already does — but say so explicitly rather than relying on it.
+sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || true
+
+exit 0

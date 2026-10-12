@@ -1,4 +1,0 @@
-# Child node (client) for the bootstrap-payment test. Builds a token on the
-# fake mint and pays the gateway.
-unit: "bytes"
-firewall: sets-only

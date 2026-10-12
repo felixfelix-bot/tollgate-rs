@@ -41,27 +41,27 @@
 
   <!-- Title -->
   <text x="360" y="28" text-anchor="middle" class="title">Pricing Direction</text>
-  <text x="360" y="46" text-anchor="middle" class="subtitle">The provider charges their own rate — each direction priced independently</text>
+  <text x="360" y="46" text-anchor="middle" class="subtitle">The provider is paid in its own vouchers — each direction settled independently</text>
 
   <!-- Node A -->
   <rect x="80" y="90" width="140" height="70" rx="8" class="node" stroke-width="2"/>
   <text x="150" y="120" text-anchor="middle" class="nlabel">Peer A</text>
-  <text x="150" y="140" text-anchor="middle" class="nrole">charges 5 sat/unit</text>
+  <text x="150" y="140" text-anchor="middle" class="nrole">issues A-vouchers</text>
 
   <!-- Node B -->
   <rect x="500" y="90" width="140" height="70" rx="8" class="node" stroke="#d0a040" stroke-width="2"/>
   <text x="570" y="120" text-anchor="middle" class="nlabel">Peer B</text>
-  <text x="570" y="140" text-anchor="middle" class="nrole">charges 3 sat/unit</text>
+  <text x="570" y="140" text-anchor="middle" class="nrole">issues B-vouchers</text>
 
   <!-- A delivers to B (top arrow) -->
   <line x1="220" y1="108" x2="493" y2="108" stroke="#5080c0" stroke-width="2" marker-end="url(#pR)"/>
   <text x="360" y="100" text-anchor="middle" class="alabel" fill="#5080c0">A delivers to B</text>
-  <text x="360" y="85" text-anchor="middle" class="annot">A charges A's rate: 5 sat/unit</text>
+  <text x="360" y="85" text-anchor="middle" class="annot">B pays A in A-vouchers: 1 per unit</text>
 
   <!-- B delivers to A (bottom arrow) -->
   <line x1="500" y1="145" x2="227" y2="145" stroke="#d0a040" stroke-width="2" marker-end="url(#pL)"/>
   <text x="360" y="140" text-anchor="middle" class="alabel" fill="#d0a040">B delivers to A</text>
-  <text x="360" y="170" text-anchor="middle" class="annot">B charges B's rate: 3 sat/unit</text>
+  <text x="360" y="170" text-anchor="middle" class="annot">A pays B in B-vouchers: 1 per unit</text>
 
   <!-- Spilman channel labels below -->
   <rect x="120" y="195" width="200" height="28" rx="4" class="callout" stroke="#d0a040" stroke-width="1"/>
@@ -75,6 +75,6 @@
   <line x1="500" y1="195" x2="500" y2="100" stroke="#5080c0" stroke-width="0.5" stroke-dasharray="3,3"/>
 
   <!-- Caption -->
-  <text x="360" y="255" text-anchor="middle" class="caption">Each peer sets their own price. B pays A for A's delivery service.</text>
+  <text x="360" y="255" text-anchor="middle" class="caption">Delivery is 1 voucher per unit both ways. B pays A for A's delivery service.</text>
   <text x="360" y="272" text-anchor="middle" class="caption">A pays B for B's delivery service. Two independent channels.</text>
 </svg>

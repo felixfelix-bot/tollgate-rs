@@ -1,0 +1,6 @@
+# Kept across a sysupgrade. The identity is the node: lose it and every
+# voucher a peer holds becomes a claim on an issuer that no longer exists.
+/etc/tollgate/tollgate.yaml
+# And the wallet is the money. These are bearer tokens; there is no recovering
+# them from anywhere else.
+/etc/tollgate/wallet.sqlite

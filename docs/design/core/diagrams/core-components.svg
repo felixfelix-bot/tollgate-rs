@@ -41,7 +41,7 @@
   <!-- Spilman Channel Manager -->
   <rect x="60" y="95" width="185" height="55" rx="5" class="callout" stroke="#50a0c0" stroke-width="1.5"/>
   <text x="152" y="118" text-anchor="middle" class="mlabel" fill="#80c0e0">Spilman Channel</text>
-  <text x="152" y="133" text-anchor="middle" class="mdesc">lifecycle, rollover, netting</text>
+  <text x="152" y="133" text-anchor="middle" class="mdesc">lifecycle, rollover, grants</text>
 
   <!-- Product Catalog & Pricing -->
   <rect x="258" y="95" width="185" height="55" rx="5" class="callout" stroke="#50c050" stroke-width="1.5"/>

@@ -1,0 +1,35 @@
+# Buys transit and pulls a real file through the gateway.
+identity:
+  secret_key: "e320cb6477ed200fa997b77fdbbeb76f26f9b4672ac390cccde71292097b2b4b"
+mint:
+  url: "http://[fd81:f1b:5135:2317:58f9:eb75:dc4d:98b8]:3338"
+  listen: "[::]:3338"
+  unit: "byte"
+buying:
+  # As in the nftables forwarding topology, and for the same reason: this
+  # carries a real TCP flow, and the lead is what a renewal has to spare
+  # before the grant lapses under it.
+  window_ms: 4000
+  renew_lead_ms: 1200
+forwarding:
+  # The client forwards nothing — it is at the edge of the mesh. It runs the
+  # FIPS adapter anyway, so that its control plane checks the gateway's
+  # identity against the address it dials, and so that `--demand` reaches the
+  # buyer through the same path a real node would use.
+  mode: fips
+network:
+  listen: "[::]:4747"
+peers:
+  "02f383c916faa702f91b5e836ed6f12d5f80fb1752ff4db28e6e77997036befd74":
+    endpoint: "[fde5:b78f:c4ef:a89c:82cd:b05b:8ee7:ed56]:4747"
+market:
+  # What this node takes as payment for its own vouchers, and what a unit of it
+  # buys. Priced per issuer: paper from a mint you trust less is worth less.
+  accept:
+    - mint: "http://sat-mint:8085"
+      unit: sat
+      bytes_per_unit: 1000000
+wallet:
+  # Where this node holds the money it pays peers with.
+  mint: "http://sat-mint:8085"
+  unit: sat

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 350" font-family="monospace" font-size="12">
+  <style>
+    text          { fill: #e0e0e0; }
+    text.title    { font-size: 16px; font-weight: bold; }
+    text.subtitle { font-size: 12px; fill: #909090; }
+    text.nlabel   { font-size: 13px; font-weight: bold; }
+    text.nrole    { font-size: 10px; fill: #909090; }
+    text.annot    { font-size: 10px; fill: #909090; font-style: italic; }
+    text.caption  { font-size: 11px; fill: #707080; font-style: italic; }
+    text.big      { font-size: 22px; font-weight: bold; }
+
+    .bg      { fill: #0d1117; }
+    .callout { fill: #151520; }
+
+    @media (prefers-color-scheme: light) {
+      text          { fill: #1f2328; }
+      text.subtitle, text.nrole, text.annot { fill: #656d76; }
+      text.caption  { fill: #7c8186; }
+      .bg           { fill: #ffffff; }
+      .callout      { fill: #f6f8fa; }
+    }
+  </style>
+
+  <defs>
+    <marker id="scArr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0,0 8,3 0,6" fill="#40a060"/>
+    </marker>
+  </defs>
+
+  <rect width="800" height="350" rx="8" class="bg"/>
+
+  <text x="400" y="28" text-anchor="middle" class="title">Spilman as State Compression</text>
+  <text x="400" y="46" text-anchor="middle" class="subtitle">Under vouchers, channels bound the issuer's spent-proof set &#8212; not the payer's risk</text>
+
+  <rect x="45" y="80" width="290" height="170" rx="8" class="callout" stroke="#c05050" stroke-width="1.5"/>
+  <text x="190" y="104" text-anchor="middle" class="nlabel" fill="#c05050">Without channels</text>
+  <text x="190" y="126" text-anchor="middle" class="nrole">172,800 payments/day &#215; ~11.5 proofs</text>
+  <text x="190" y="162" text-anchor="middle" class="big" fill="#c05050">2.0M</text>
+  <text x="190" y="180" text-anchor="middle" class="nrole">proof records / day</text>
+  <text x="190" y="206" text-anchor="middle">&#8776; 160 MB / day</text>
+  <text x="190" y="228" text-anchor="middle" class="annot">OpenWrt flash: 16&#8211;128 MB total</text>
+  <text x="190" y="242" text-anchor="middle" class="annot" fill="#c05050">exhausted within hours</text>
+
+  <line x1="345" y1="165" x2="450" y2="165" stroke="#40a060" stroke-width="2" marker-end="url(#scArr)"/>
+  <text x="397" y="155" text-anchor="middle" class="nlabel" fill="#40a060">700&#215;</text>
+
+  <rect x="465" y="80" width="290" height="170" rx="8" class="callout" stroke="#40a060" stroke-width="1.5"/>
+  <text x="610" y="104" text-anchor="middle" class="nlabel" fill="#40a060">With Spilman channels</text>
+  <text x="610" y="126" text-anchor="middle" class="nrole">240 settlements/day &#215; ~11.5 proofs</text>
+  <text x="610" y="162" text-anchor="middle" class="big" fill="#40a060">2,800</text>
+  <text x="610" y="180" text-anchor="middle" class="nrole">proof records / day</text>
+  <text x="610" y="206" text-anchor="middle">&#8776; 216 KB / day</text>
+  <text x="610" y="228" text-anchor="middle" class="annot" fill="#40a060">bounded indefinitely</text>
+
+  <rect x="90" y="268" width="620" height="46" rx="4" class="callout" stroke="#5080c0" stroke-width="1"/>
+  <text x="400" y="288" text-anchor="middle" class="annot" fill="#5080c0">Channels are not protecting the payer from the issuer.</text>
+  <text x="400" y="304" text-anchor="middle" class="annot">They are keeping the issuer's database bounded.</text>
+
+  <text x="400" y="338" text-anchor="middle" class="caption">Double-spend checking is already free &#8212; the issuer is the authority on its own paper.</text>
+</svg>

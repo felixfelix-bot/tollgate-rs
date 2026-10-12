@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" font-family="monospace" font-size="12">
+  <style>
+    text          { fill: #e0e0e0; }
+    text.title    { font-size: 16px; font-weight: bold; }
+    text.subtitle { font-size: 12px; fill: #909090; }
+    text.nlabel   { font-size: 14px; font-weight: bold; }
+    text.nrole    { font-size: 10px; fill: #909090; }
+    text.annot    { font-size: 10px; fill: #909090; font-style: italic; }
+    text.caption  { font-size: 11px; fill: #707080; font-style: italic; }
+    text.amt      { font-size: 12px; font-weight: bold; }
+
+    .bg      { fill: #0d1117; }
+    .callout { fill: #151520; }
+    .node    { fill: #2e3a5e; }
+
+    @media (prefers-color-scheme: light) {
+      text          { fill: #1f2328; }
+      text.subtitle, text.nrole, text.annot { fill: #656d76; }
+      text.caption  { fill: #7c8186; }
+      .bg           { fill: #ffffff; }
+      .callout      { fill: #f6f8fa; }
+      .node         { fill: #ddf4ff; }
+    }
+  </style>
+
+  <defs>
+    <marker id="wpDown" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <polygon points="0,0 7,2.5 0,5" fill="#40a060"/>
+    </marker>
+    <marker id="wpUp" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <polygon points="0,0 7,2.5 0,5" fill="#d0a040"/>
+    </marker>
+  </defs>
+
+  <rect width="800" height="400" rx="8" class="bg"/>
+
+  <text x="400" y="28" text-anchor="middle" class="title">Each Side Pays For What It Received</text>
+  <text x="400" y="46" text-anchor="middle" class="subtitle">Two channels by default &#8212; the multiplier is a surcharge, not the base rule</text>
+
+  <rect x="45" y="90" width="165" height="110" rx="8" class="node" stroke="#5080c0" stroke-width="2"/>
+  <text x="127" y="122" text-anchor="middle" class="nlabel">Leaf A</text>
+  <text x="127" y="146" text-anchor="middle" class="nrole">owes B for its</text>
+  <text x="127" y="162" text-anchor="middle" class="nrole">download</text>
+  <text x="127" y="184" text-anchor="middle" class="nrole">funds channel A&#8594;B</text>
+
+  <rect x="590" y="90" width="165" height="110" rx="8" class="node" stroke="#40a060" stroke-width="2"/>
+  <text x="672" y="122" text-anchor="middle" class="nlabel">Relay B</text>
+  <text x="672" y="146" text-anchor="middle" class="nrole">owes A for its</text>
+  <text x="672" y="162" text-anchor="middle" class="nrole">upload</text>
+  <text x="672" y="184" text-anchor="middle" class="nrole">funds channel B&#8594;A</text>
+
+  <text x="400" y="106" text-anchor="middle" class="annot" fill="#40a060">B delivers 1 GB to A</text>
+  <line x1="585" y1="118" x2="215" y2="118" stroke="#40a060" stroke-width="2.5" marker-end="url(#wpDown)"/>
+  <text x="400" y="134" text-anchor="middle" class="amt" fill="#40a060">A owes B 1,000</text>
+
+  <text x="400" y="162" text-anchor="middle" class="annot" fill="#d0a040">A delivers 50 MB to B</text>
+  <line x1="215" y1="174" x2="585" y2="174" stroke="#d0a040" stroke-width="1.5" marker-end="url(#wpUp)"/>
+  <text x="400" y="190" text-anchor="middle" class="amt" fill="#d0a040">B owes A 50</text>
+
+  <rect x="70" y="215" width="660" height="62" rx="4" class="callout" stroke="#d0a040" stroke-width="1"/>
+  <text x="400" y="235" text-anchor="middle" class="annot" fill="#d0a040">B wants A's upload to cost the same as its download: received_multiplier = 2</text>
+  <text x="400" y="253" text-anchor="middle" class="amt">A owes 1,000 + 50&#215;2 = 1,100 &#183; B owes 50 &#183; net A pays 1,050</text>
+  <text x="400" y="270" text-anchor="middle" class="annot">Both channels still exist. The surcharge changed the balance, not the structure.</text>
+
+  <rect x="70" y="290" width="660" height="46" rx="4" class="callout" stroke="#5080c0" stroke-width="1"/>
+  <text x="400" y="309" text-anchor="middle" class="annot" fill="#5080c0">received_multiplier &#8212; unsigned, per peer, default 0</text>
+  <text x="400" y="326" text-anchor="middle" class="annot">net rate is m&#8722;1: 0 = we pay 1&#215; &#183; 1 = free &#183; 2 = same as download &#183; 11 = 10&#215;</text>
+
+  <text x="400" y="360" text-anchor="middle" class="caption">Only above 1 does a peer pay net for its upload; at 2 it pays the same rate as its download.</text>
+  <text x="400" y="378" text-anchor="middle" class="caption">Measurement is unchanged &#8212; delivered and received, link-local. Only a surcharge term was added.</text>
+</svg>

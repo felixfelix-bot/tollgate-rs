@@ -1,5 +1,0 @@
-# Client for the exhaust test: pays the gateway a small bootstrap token, then
-# exits. The gateway meters the balance to zero on its own (time-priced), so the
-# client does not need to stay connected.
-unit: "bytes"
-firewall: sets-only

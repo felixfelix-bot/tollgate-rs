@@ -5,6 +5,10 @@ members = [
     "crates/tollgate-core",
     "crates/tollgate-net",
 ]
+# `reference/` holds checkouts of other projects, each with its own workspace.
+# Without this, cargo treats their crates as members of ours and tries to
+# resolve their `workspace = true` inheritance against this manifest.
+exclude = ["reference"]
 
 [workspace.package]
 edition = "2024"
@@ -15,39 +19,32 @@ repository = "https://github.com/OpenTollGate/tollgate-rs"
 authors = ["TollGate contributors"]
 
 [workspace.lints.rust]
-# Core and protocol are no_std and have no reason to reach for unsafe.
+# protocol and core are no_std and have no reason to reach for unsafe.
 # tollgate-net only drives I/O; keep the whole tree safe by default.
 unsafe_code = "deny"
+missing_docs = "warn"
 
 [workspace.dependencies]
 # --- internal crates ---
 tollgate-protocol = { path = "crates/tollgate-protocol", version = "0.1.0" }
 tollgate-core = { path = "crates/tollgate-core", version = "0.1.0" }
 
-# --- shared external crates ---
-# minicbor: no_std-first CBOR with derive that maps cleanly onto the wire
-# format's integer field keys (#[n(0)], #[n(1)], ...). Works on esp32.
-minicbor = { version = "0.24", default-features = false, features = ["alloc", "derive"] }
-# sha2 with default-features off stays no_std (used for product_id).
-sha2 = { version = "0.10", default-features = false }
+# --- no_std, used by protocol and core ---
+# minicbor: no_std-first CBOR. The wire format's integer field keys map onto
+# the low-level Encoder/Decoder directly, so no derive is needed.
+minicbor = { version = "0.24", default-features = false, features = ["alloc"] }
 
-# cashu: protocol-primitives layer from cashubtc/cdk — same rev cdk-spilman uses.
-# Provides NUT-00 token parsing, proof types, and mint HTTP client.
-# cdk-spilman (Spilman channels) builds on top of this same crate later.
-cashu = { git = "https://github.com/cashubtc/cdk.git", rev = "63866dc6d7da9796c75365cde97157d464331da1", package = "cashu", default-features = false, features = ["mint"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-serde_json = "1.0"
-bytes = "1"
-
-# net-only (binary) crates, version-pinned here for consistency
-thiserror = "2.0"
+# --- std, used by tollgate-net only ---
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "sync", "net", "time", "io-util"] }
+# secp256k1 carries its own sha256, so the node needs no separate hash crate
+# for signing; `sha2` below is for deriving channel identifiers.
+secp256k1 = { version = "0.30", features = ["rand", "global-context"] }
+sha2 = "0.10"
 anyhow = "1"
+thiserror = "2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "sync", "net", "time", "io-util"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4", features = ["derive"] }
 hex = "0.4"
-dirs = "6.0"
-secp256k1 = { version = "0.30", features = ["rand", "global-context"] }

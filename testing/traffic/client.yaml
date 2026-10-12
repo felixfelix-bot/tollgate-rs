@@ -1,4 +1,0 @@
-# Client for the traffic demo. It runs `consume` (pays + auto-tops-up) and floods
-# ping to the upstream through the gateway, generating real metered transit
-# traffic. It is not a node here, so only `unit` matters.
-unit: "bytes"

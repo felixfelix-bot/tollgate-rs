@@ -83,12 +83,12 @@
   <!-- IPv6 Adapter -->
   <rect x="410" y="280" width="220" height="55" rx="5" class="callout" stroke="#404060" stroke-width="1.5"/>
   <text x="520" y="303" text-anchor="middle" class="mlabel" fill="#b0b0b0">IPv6 Adapter</text>
-  <text x="520" y="318" text-anchor="middle" class="mdesc">HTTP / WebSocket transport</text>
+  <text x="520" y="318" text-anchor="middle" class="mdesc">raw TCP transport</text>
 
   <!-- Legend -->
   <text x="100" y="372" class="caption">1 Per-peer delivery policy</text>
   <text x="100" y="387" class="caption">2 Bloom filter exclusion</text>
-  <text x="350" y="372" class="caption">3 MMP metrics for dynamic pricing</text>
+  <text x="350" y="372" class="caption">3 MMP metrics for operator visibility</text>
   <text x="350" y="387" class="caption">4 Peer connect/disconnect callbacks</text>
   <text x="570" y="372" class="caption">5 TollGate message transport</text>
 </svg>

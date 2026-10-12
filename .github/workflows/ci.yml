@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [master]
   pull_request:
 
 env:
@@ -18,6 +17,11 @@ jobs:
           toolchain: "1.94.1"
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      # cdk's signatory reaches gRPC through prost, whose build script shells
+      # out to protoc. The test image installs it for the same reason; anything
+      # that compiles this workspace outside a container has to as well.
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends protobuf-compiler
       - name: Format
         run: cargo fmt --all --check
       - name: Clippy
@@ -67,7 +71,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [detect, bootstrap, exhaust, metering, drift]
+        # Every topology under testing/ except `fips`, which needs a second
+        # image built from a FIPS checkout this repository does not carry —
+        # see testing/README.md. Run that one by hand.
+        suite: [peering, purchase, refusal, rollover, allowance, forwarding]
     steps:
       - uses: actions/checkout@v5
       - name: Download image artifact

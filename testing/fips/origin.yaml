@@ -1,0 +1,27 @@
+# Serves the file, and sells nothing.
+#
+# It runs tollgated only so that the gateway has a session to hang a policy on:
+# a peer the gateway has never named falls under the default, which is the
+# unpaid allowance, and an upstream throttled to the allowance cannot carry the
+# acknowledgements of traffic somebody else has paid for.
+identity:
+  secret_key: "7a155d96e5659fa94216570b08f58530aa308aa8c967a1cfacd412b83e727278"
+mint:
+  url: "http://[fd8b:b816:ee09:45b8:6f58:4e2c:2c2e:43b8]:3338"
+  listen: "[::]:3338"
+  unit: "byte"
+forwarding:
+  mode: fips
+network:
+  listen: "[::]:4747"
+market:
+  # What this node takes as payment for its own vouchers, and what a unit of it
+  # buys. Priced per issuer: paper from a mint you trust less is worth less.
+  accept:
+    - mint: "http://sat-mint:8085"
+      unit: sat
+      bytes_per_unit: 1000000
+wallet:
+  # Where this node holds the money it pays peers with.
+  mint: "http://sat-mint:8085"
+  unit: sat

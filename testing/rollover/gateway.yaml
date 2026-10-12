@@ -1,0 +1,35 @@
+# Sells access. Listens; never dials.
+identity:
+  secret_key: "78d684aa33cd91c862ca9dd42e969b97e511bf36d4848e6a90d967bc174199c1"
+mint:
+  # Reachable by the client under its compose service name — a peer funds its
+  # channel against this, so it has to resolve from the peer's side.
+  url: "http://gateway:3338"
+  listen: "0.0.0.0:3338"
+  unit: "byte"
+vouchers:
+  accepted_mints:
+    - "http://gateway:3338"
+
+access:
+  minimum_flow:
+    enabled: true
+    bytes_per_second: 4096
+grants:
+  window_range_ms: [200, 30000]
+
+channels:
+  initial_capacity: 5000000
+network:
+  listen: "0.0.0.0:4747"
+market:
+  # What this node takes as payment for its own vouchers, and what a unit of it
+  # buys. Priced per issuer: paper from a mint you trust less is worth less.
+  accept:
+    - mint: "http://sat-mint:8085"
+      unit: sat
+      bytes_per_unit: 1000000
+wallet:
+  # Where this node holds the money it pays peers with.
+  mint: "http://sat-mint:8085"
+  unit: sat

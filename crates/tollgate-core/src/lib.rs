@@ -1,40 +1,55 @@
-//! `tollgate-core` — resource-agnostic TollGate logic.
+//! Sans-IO TollGate protocol logic.
 //!
-//! # Architecture: sans-IO
+//! This crate is **pure**: it never does I/O, never reads the clock, never
+//! verifies a signature, and depends on no async runtime. The host
+//! (`tollgate-net`) turns real events into [`Event`] values, feeds them in, and
+//! executes the [`Action`]s that come back. Every decision that needs the time
+//! takes it as a `now_ms` argument.
 //!
-//! This crate is a pure, synchronous state machine. It performs **no I/O** and
-//! depends on **no async runtime**, so it builds for esp32 (`no_std` + `alloc`)
-//! exactly as it does for a tokio host. That is the whole reason for the shape:
-//! tokio cannot run on esp32, so anything that touched it could not be shared.
+//! That boundary is what lets the same logic run on a Linux router and on an
+//! ESP32: the crate is `no_std` + `alloc`, and the parts that would need a
+//! runtime live entirely on the host's side of the seam.
 //!
-//! The host drives core in a loop:
-//!   1. translate real-world I/O (peer connected, bytes arrived, a meter
-//!      reading, a token verified by the mint) into an [`Event`];
-//!   2. call [`Session::handle`], which returns a list of [`Action`]s;
-//!   3. execute those actions — send bytes, install firewall rules, call the
-//!      mint — feeding any results back in as new [`Event`]s.
+//! Module layout follows the same split throughout — `core.rs` holds the pure
+//! decisions, `state.rs` the data they read, `limits.rs` the arithmetic:
 //!
-//! Consequently the `Wallet` and resource-adapter work lives in the **host**
-//! (`tollgate-net`), not here: core only emits the *intent*
-//! (e.g. [`Action::VerifyBootstrapToken`]) and reacts to the result. This keeps
-//! core deterministic and trivially testable — no executor, no mocks, no clock.
+//! - [`grant`] — what a peer bought and what it has drawn down. The provider
+//!   side of payment.
+//! - [`buyer`] — when to buy and how much. The payer side, including the demand
+//!   -tracking algorithm that raises the purchased rate as traffic climbs.
+//! - [`session`] — the per-peer message lifecycle that ties the two together.
+//! - [`meter`] — cumulative delivered/received counters, link-local.
+//! - [`access`] — the delivery gate.
+//!
+//! # What the host must do before calling in
+//!
+//! Core trusts what it is handed. Specifically, the host must have
+//! **verified any signature** on a message before wrapping it in
+//! [`Event::MessageReceived`], exactly as FIPS terminates Noise before the
+//! protocol layer sees a peer. Core decides *what* is owed and *when*; it never
+//! decides whether a peer is who it claims to be.
+
 #![no_std]
 
 extern crate alloc;
 
 pub mod access;
-pub mod action;
-pub mod event;
-pub mod metering;
-pub mod peer;
-pub mod pricing;
+pub mod buyer;
+pub mod config;
+pub mod grant;
+pub mod meter;
 pub mod session;
-pub mod time;
+
+mod action;
+mod event;
+mod time;
 
 pub use access::AccessLevel;
 pub use action::Action;
+pub use config::{GrantPolicy, NodePolicy, PeerPolicy};
 pub use event::Event;
-pub use peer::PeerId;
-pub use pricing::{Price, Product};
-pub use session::{PeerPhase, PeerSnapshot, Session};
 pub use time::Millis;
+
+// Re-exported so a host can name the wire types without also depending on
+// `tollgate-protocol` directly.
+pub use tollgate_protocol::{ChannelId, Message, PubKey, ReasonCode, Signature};

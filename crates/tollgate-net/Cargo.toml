@@ -1,41 +1,71 @@
 [package]
 name = "tollgate-net"
-description = "TollGate node — sells metered network access over IP (FIPS support later)."
+description = "TollGate node: raw-TCP transport, payment channels, and a network-forwarding resource adapter"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 version.workspace = true
 repository.workspace = true
 authors.workspace = true
-default-run = "tollgate"
 
 [[bin]]
-name = "tollgate"
-path = "src/main.rs"
+name = "tollgated"
+path = "src/bin/tollgated.rs"
+
+[[bin]]
+name = "tolltop"
+path = "src/bin/tolltop.rs"
 
 [dependencies]
-tollgate-core = { workspace = true }
-tollgate-protocol = { workspace = true }
-tokio = { workspace = true }
-axum = { version = "0.8", features = ["ws"] }
-serde = { workspace = true }
-serde_yaml = { workspace = true }
-clap = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-hex = { workspace = true }
-dirs = { workspace = true }
-secp256k1 = { workspace = true }
-cashu = { workspace = true }
-reqwest = { workspace = true }
-serde_json = { workspace = true }
-bytes = { workspace = true }
-# tolltop TUI (also pulls crossterm as its default backend).
-ratatui = "0.29"
+tollgate-core.workspace = true
+tollgate-protocol.workspace = true
+
+tokio.workspace = true
+secp256k1.workspace = true
+sha2.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_yaml.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+clap.workspace = true
+hex.workspace = true
+# The control socket publishes a snapshot per tick and readers take whatever is
+# current, so the swap wants to be cheap and lock-free rather than contended.
+arc-swap = "1"
+ratatui = "0.30"
+crossterm = "0.29"
+# FIPS names peers by npub, so the adapter that drives it has to speak NIP-19.
+bech32 = "0.11"
+# Implementing cdk's payment-processor trait, and rewriting the stream of
+# payments it produces. Both versions follow cdk's own.
+async-trait = "0.1"
+futures = { version = "0.3", default-features = false, features = ["async-await"] }
+
+# --- Cashu: the mint this node runs, and the channels it pays over ---------
+# Pinned to the same cdk tag the reference workspace uses; two different cdk
+# versions in one graph would not resolve.
+#
+# A git dependency rather than a path into `reference/`: that directory holds
+# reading copies of other projects and is not checked in, so depending on it
+# would break a fresh clone and the container build.
+cdk-spilman = { git = "https://github.com/SatsAndSports/cashu_spilman_channels.git", rev = "f5e163961f", package = "cdk-spilman", features = ["wallet", "configurable-host-reqwest"] }
+cdk = { git = "https://github.com/cashubtc/cdk.git", tag = "v0.18.1", package = "cdk", default-features = false, features = ["mint", "wallet"] }
+cdk-axum = { git = "https://github.com/cashubtc/cdk.git", tag = "v0.18.1", package = "cdk-axum", default-features = false }
+cdk-common = { git = "https://github.com/cashubtc/cdk.git", tag = "v0.18.1", package = "cdk-common", default-features = false }
+cdk-fake-wallet = { git = "https://github.com/cashubtc/cdk.git", tag = "v0.18.1", package = "cdk-fake-wallet" }
+cdk-sqlite = { git = "https://github.com/cashubtc/cdk.git", tag = "v0.18.1", package = "cdk-sqlite", default-features = false, features = ["mint", "wallet"] }
+cashu = { git = "https://github.com/cashubtc/cdk.git", tag = "v0.18.1", package = "cashu", default-features = false }
+axum = { version = "0.8" }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }
+serde_json = { version = "1" }
+qrcode = { version = "0.14.1", default-features = false }
 
 [dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+# Driving an axum Router without binding a socket, which is how the speedtest's
+# handlers are tested.
 tower = { version = "0.5", features = ["util"] }
 
 [lints]

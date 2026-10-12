@@ -79,15 +79,15 @@
 
   <!-- ═══ Phase 2: Pricing ═══ -->
   <text x="40" y="207" text-anchor="middle" class="plabel">2</text>
-  <text x="40" y="223" text-anchor="middle" class="annot">Pricing</text>
+  <text x="40" y="223" text-anchor="middle" class="annot">Terms</text>
 
-  <!-- A → B PriceSheet -->
+  <!-- A → B Offer -->
   <line x1="170" y1="215" x2="548" y2="215" stroke="#5080c0" stroke-width="1.5" marker-end="url(#aR)"/>
-  <text x="360" y="208" text-anchor="middle" class="alabel" fill="#5080c0">PriceSheet (products, prices)</text>
+  <text x="360" y="208" text-anchor="middle" class="alabel" fill="#5080c0">Offer (mints, unit, window range, multiplier)</text>
 
-  <!-- B → A PriceSheet -->
+  <!-- B → A Offer -->
   <line x1="550" y1="240" x2="172" y2="240" stroke="#d0a040" stroke-width="1.5" marker-end="url(#aL)"/>
-  <text x="360" y="233" text-anchor="middle" class="alabel" fill="#d0a040">PriceSheet (products, prices)</text>
+  <text x="360" y="233" text-anchor="middle" class="alabel" fill="#d0a040">Offer (mints, unit, multiplier)</text>
 
   <!-- separator -->
   <line x1="70" y1="260" x2="660" y2="260" class="sep"/>
@@ -117,32 +117,25 @@
 
   <!-- ═══ Phase 4: Settlement loop ═══ -->
   <text x="40" y="417" text-anchor="middle" class="plabel">4</text>
-  <text x="40" y="433" text-anchor="middle" class="annot">Settle</text>
-  <text x="40" y="445" text-anchor="middle" class="annot">(repeat)</text>
+  <text x="40" y="433" text-anchor="middle" class="annot">Buy</text>
+  <text x="40" y="445" text-anchor="middle" class="annot">(each side,</text>
 
   <!-- loop indicator -->
-  <rect x="100" y="405" width="530" height="160" rx="4" fill="none" stroke="#303040" stroke-width="1" stroke-dasharray="4,3"/>
-  <text x="625" y="418" text-anchor="start" class="annot">every 5s</text>
+  <rect x="100" y="405" width="530" height="145" rx="4" fill="none" stroke="#303040" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="625" y="418" text-anchor="start" class="annot">on its own)</text>
 
-  <!-- A → B MeteringReport -->
-  <line x1="170" y1="430" x2="548" y2="430" stroke="#5080c0" stroke-width="1.5" marker-end="url(#aR)"/>
-  <text x="360" y="423" text-anchor="middle" class="alabel" fill="#5080c0">MeteringReport</text>
+  <!-- A → B TopUp: A buys a rate from B -->
+  <line x1="170" y1="440" x2="548" y2="440" stroke="#5080c0" stroke-width="2" marker-end="url(#aR)"/>
+  <text x="360" y="433" text-anchor="middle" class="alabel" fill="#5080c0">TopUp (cumulative, window)</text>
 
-  <!-- B → A MeteringReport -->
-  <line x1="550" y1="455" x2="172" y2="455" stroke="#d0a040" stroke-width="1.5" marker-end="url(#aL)"/>
-  <text x="360" y="448" text-anchor="middle" class="alabel" fill="#d0a040">MeteringReport</text>
+  <!-- B → A TopUp: B buys a rate from A -->
+  <line x1="550" y1="480" x2="172" y2="480" stroke="#d0a040" stroke-width="2" marker-end="url(#aL)"/>
+  <text x="360" y="473" text-anchor="middle" class="alabel" fill="#d0a040">TopUp (cumulative, window)</text>
 
-  <!-- compute note -->
-  <text x="360" y="480" text-anchor="middle" class="annot">both compute net (deterministic)</text>
-
-  <!-- debtor → creditor BalanceUpdate -->
-  <line x1="550" y1="500" x2="172" y2="500" stroke="#d0a040" stroke-width="2" marker-end="url(#aL)"/>
-  <text x="360" y="493" text-anchor="middle" class="alabel" fill="#d0a040">BalanceUpdate (net debtor signs)</text>
-
-  <!-- creditor → debtor BalanceAck -->
-  <line x1="170" y1="525" x2="548" y2="525" stroke="#40a060" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#aG)"/>
-  <text x="360" y="518" text-anchor="middle" class="alabel" fill="#40a060">BalanceAck</text>
+  <!-- notes -->
+  <text x="360" y="510" text-anchor="middle" class="annot">no acknowledgment &#8212; cumulative state is self-correcting</text>
+  <text x="360" y="530" text-anchor="middle" class="annot">each side repeats before its own deadline; the two never synchronize</text>
 
   <!-- Caption -->
-  <text x="360" y="585" text-anchor="middle" class="caption">Both sides send PriceSheet and Accept — each charges independently</text>
+  <text x="360" y="585" text-anchor="middle" class="caption">Both sides send Offer and Accept — each delivers independently</text>
 </svg>

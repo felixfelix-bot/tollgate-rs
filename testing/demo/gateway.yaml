@@ -1,0 +1,68 @@
+# Sells transit, and takes real money for it.
+#
+# The difference from every other topology here: the mint it is paid in is a
+# real one out on the internet, rather than a fake wallet in the next
+# container. Nothing settles itself — an invoice is paid by a person with a
+# Lightning wallet or it is not paid at all.
+#
+# Several mints rather than one, because a public mint is somebody else's
+# server: minibits refused connections from here, coinos rate-limited the
+# quotes. The list below is what was answering.
+identity:
+  secret_key: "78d684aa33cd91c862ca9dd42e969b97e511bf36d4848e6a90d967bc174199c1"
+mint:
+  url: "http://gateway:3338"
+  listen: "0.0.0.0:3338"
+  unit: "byte"
+vouchers:
+  accepted_mints:
+    - "http://gateway:3338"
+access:
+  minimum_flow:
+    enabled: true
+    bytes_per_second: 4096
+grants:
+  window_range_ms: [200, 30000]
+
+market:
+  # What this node takes as payment. Several issuers, because a buyer arrives
+  # holding whatever it holds — and because public mints go down, rate-limit,
+  # or refuse connections from one network and not another. All four were
+  # answering and issuing quotes when this was written.
+  #
+  # They are priced the same here, which is the simplification: what an
+  # issuer's paper is worth is exactly what a market would price differently,
+  # and that is what `bytes_per_unit` per entry exists to say.
+  #
+  # 18,000,000 bytes to the sat is what the OpenWrt package ships: 1000 sat for
+  # about an hour at 5 MB/s, so a 1 GB channel costs a buyer about 56 sat.
+  accept:
+    - mint: "https://21mint.me"
+      unit: sat
+      bytes_per_unit: 18000000
+    - mint: "https://mint.macadamia.cash"
+      unit: sat
+      bytes_per_unit: 18000000
+    - mint: "https://mint.westernbtc.com"
+      unit: sat
+      bytes_per_unit: 18000000
+    - mint: "https://mint.cubabitcoin.org"
+      unit: sat
+      bytes_per_unit: 18000000
+    # Reachable again eventually, and both were refusing connections from here:
+    # - mint: "https://mint.minibits.cash/Bitcoin"
+    # - mint: "https://mint.coinos.io"        # answers, but rate-limits quotes
+
+wallet:
+  # Where this node buys the money it pays with. One mint, and it has to be one
+  # the peer accepts — the entry above with the same URL is what makes the two
+  # halves meet.
+  #
+  # Swap it for another from the list if this one starts refusing: a top-up is
+  # the one step that depends on a stranger's server being up.
+  mint: "https://21mint.me"
+  unit: sat
+  file: "/var/lib/tollgate/wallet.sqlite"
+
+network:
+  listen: "0.0.0.0:4747"

@@ -52,9 +52,9 @@
   <text x="210" y="250" text-anchor="middle" class="slabel" fill="#80e080">Active</text>
   <text x="210" y="268" text-anchor="middle" class="sdesc" fill="#909090">metered, visible</text>
 
-  <!-- ═══ ZEROPRICE — right middle ═══ -->
+  <!-- ═══ FREE — right middle ═══ -->
   <rect x="420" y="225" width="180" height="55" rx="8" class="callout" stroke="#50c050" stroke-width="2"/>
-  <text x="510" y="250" text-anchor="middle" class="slabel" fill="#80e080">ZeroPrice</text>
+  <text x="510" y="250" text-anchor="middle" class="slabel" fill="#80e080">Free</text>
   <text x="510" y="268" text-anchor="middle" class="sdesc" fill="#909090">unmetered, visible</text>
 
   <!-- ═══ SUSPENDED — center bottom ═══ -->
@@ -69,9 +69,9 @@
   <text x="220" y="178" text-anchor="end" class="elabel">payment ok</text>
   <text x="220" y="190" text-anchor="end" class="elabel">(token or channel)</text>
 
-  <!-- None → ZeroPrice (down-right) -->
+  <!-- None → Free (down-right) -->
   <line x1="400" y1="130" x2="480" y2="223" stroke="#50c050" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#ag)"/>
-  <text x="500" y="178" text-anchor="start" class="elabel">zero-price</text>
+  <text x="500" y="178" text-anchor="start" class="elabel">free</text>
 
   <!-- Active → Suspended (down) -->
   <line x1="200" y1="280" x2="200" y2="367" stroke="#c05050" stroke-width="1.5" marker-end="url(#ared)"/>

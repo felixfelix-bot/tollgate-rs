@@ -1,0 +1,28 @@
+# Is an oversized purchase refused and re-bought at the rate named?
+services:
+  # The money. A sat-denominated mint standing in for the likes of minibits:
+  # a node buys its paper here and pays a peer with it, because a peer sells
+  # capacity for money it can hold, not for its own vouchers.
+  sat-mint:
+    image: cashubtc/mintd:latest
+    command: ["cdk-mintd", "--config", "/etc/cdk/mintd.toml"]
+    volumes:
+      - ../mint/mintd.toml:/etc/cdk/mintd.toml:ro
+  gateway:
+    image: tollgate-test:latest
+    command: ["-c", "/etc/tollgate/gateway.yaml", "--control-socket", "/run/tollgate.sock"]
+    volumes:
+      - ./gateway.yaml:/etc/tollgate/gateway.yaml:ro
+    environment:
+      RUST_LOG: "${RUST_LOG:-tollgate_net=debug,info}"
+
+  client:
+    image: tollgate-test:latest
+    command: ["-c", "/etc/tollgate/client.yaml", "--control-socket", "/run/tollgate.sock", "--demand", "8000000"]
+    volumes:
+      - ./client.yaml:/etc/tollgate/client.yaml:ro
+    environment:
+      RUST_LOG: "${RUST_LOG:-tollgate_net=debug,info}"
+    depends_on:
+      - gateway
+      - sat-mint

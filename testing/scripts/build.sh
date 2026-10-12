@@ -1,28 +1,24 @@
 #!/usr/bin/env bash
-# Build the single tollgate test image, reused by all integration harnesses.
+# Build the single TollGate test image, reused by every topology.
 #
-# The image is built once and tagged `tollgate-test:latest`; every compose
-# topology runs that same image. Re-run this after changing Rust code.
+# Tagged `tollgate-test:latest`. Re-run after changing Rust code; topologies can
+# then reuse it with SKIP_BUILD=1.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TESTING_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-PROJECT_ROOT="$(cd "$TESTING_DIR/.." && pwd)"
+ROOT="$(cd "$TESTING_DIR/.." && pwd)"
 
-if [ ! -f "$PROJECT_ROOT/Cargo.toml" ]; then
-    echo "Error: Cannot find Cargo.toml at $PROJECT_ROOT" >&2
-    exit 1
-fi
+[[ -f "$ROOT/Cargo.toml" ]] || { echo "no Cargo.toml at $ROOT" >&2; exit 1; }
 
-# BuildKit is required for the Dockerfile's cache mounts (persisted cargo
-# registry + target/ across builds). Default in modern Docker; forced here so
-# incremental rebuilds are fast regardless of daemon config.
+# BuildKit is required for the Dockerfile's cache mounts. Default in modern
+# Docker; forced here so incremental rebuilds are fast regardless of config.
 export DOCKER_BUILDKIT=1
 
-echo "Building tollgate-test:latest (workspace compiled once inside the image)..."
+echo "building tollgate-test:latest ..."
 docker build \
     -t tollgate-test:latest \
     -f "$TESTING_DIR/docker/Dockerfile" \
-    "$PROJECT_ROOT"
+    "$ROOT"
 
-echo "Done. Image: tollgate-test:latest"
+echo "done: tollgate-test:latest"

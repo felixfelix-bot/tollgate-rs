@@ -1,0 +1,19 @@
+# syntax=docker/dockerfile:1
+# One image carrying both daemons: fipsd forwards, tollgated sells.
+#
+# Neither binary is compiled here — both are lifted from images that already
+# built them, so a topology change costs a layer copy rather than two Rust
+# builds. Build context is this directory (see scripts/build-fips.sh), which is
+# why nothing outside it is referenced.
+
+FROM tollgate-test:latest AS tollgate
+
+FROM fips-node:latest
+
+COPY --from=tollgate /usr/local/bin/tollgated /usr/local/bin/tollgated
+COPY --from=tollgate /usr/local/bin/tolltop /usr/local/bin/tolltop
+
+COPY fips-entrypoint.sh /usr/local/bin/fips-entrypoint.sh
+RUN chmod +x /usr/local/bin/fips-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/fips-entrypoint.sh"]

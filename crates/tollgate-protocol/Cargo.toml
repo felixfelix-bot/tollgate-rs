@@ -1,6 +1,6 @@
 [package]
 name = "tollgate-protocol"
-description = "TollGate wire protocol: CBOR message types and canonical encoding (no_std)."
+description = "TollGate wire protocol: CBOR message types, codec, and TCP framing"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -9,8 +9,12 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
-minicbor = { workspace = true }
-sha2 = { workspace = true }
+minicbor.workspace = true
+
+[dev-dependencies]
+# The codec tests hand-build a few CBOR maps our own encoder would never emit
+# (unknown keys, reordered fields) to prove the decoder tolerates them.
+minicbor.workspace = true
 
 [lints]
 workspace = true

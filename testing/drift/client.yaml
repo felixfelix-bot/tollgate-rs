@@ -1,4 +1,0 @@
-# Client for the drift suite. It runs a LYING `consume` loop
-# (--understate-received-pct 50, set on the command line) and floods ping through
-# the gateway. It is not a node here, so only `unit` matters.
-unit: "bytes"

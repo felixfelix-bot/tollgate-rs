@@ -1,0 +1,37 @@
+# The mesh node that buys transit.
+#
+# Adjacent to the gateway and to nothing else, so everything it sends to the
+# origin is carried by the gateway — which is what makes it transit, and so
+# what a transit policy can shape.
+node:
+  identity:
+    nsec: "e320cb6477ed200fa997b77fdbbeb76f26f9b4672ac390cccde71292097b2b4b"
+
+tun:
+  enabled: true
+  name: fips0
+  mtu: 1280
+
+transports:
+  udp:
+    bind_addr: "0.0.0.0:2121"
+    mtu: 1472
+
+peers:
+  - npub: "npub17wpuj9h65up0jx67sdhddufdt7q0k96jlaxm9rnww7vhqd47l46qqp80rr"
+    alias: "gateway"
+    addresses:
+      - transport: udp
+        addr: "gateway:2121"
+    connect_policy: auto_connect
+  # The origin, named but never dialled: `manual` means no connection is
+  # initiated, and what this entry buys is the identity. A FIPS address is a
+  # truncation of a node address, so a node cannot route to an address whose
+  # key it has never seen — on a real mesh a `<npub>.fips` name lookup teaches
+  # it, and here the config does, which keeps the topology free of a resolver.
+  - npub: "npub14p4nf6708e0juv93m6gz8zqez7s2jmq8qz08klmqemffkpsdvjpsx04cav"
+    alias: "origin"
+    addresses:
+      - transport: udp
+        addr: "origin:2121"
+    connect_policy: manual

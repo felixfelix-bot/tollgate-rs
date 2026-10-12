@@ -1,0 +1,45 @@
+# Sells transit across the mesh. FIPS forwards, and enforces what this sets.
+identity:
+  secret_key: "78d684aa33cd91c862ca9dd42e969b97e511bf36d4848e6a90d967bc174199c1"
+mint:
+  # Reached over the mesh, at this node's own fips0 address. The client's
+  # payments are addressed to this node rather than through it, so they are
+  # never transit and never shaped — which is the property that keeps a peer
+  # that has run out of grant able to buy more.
+  url: "http://[fde5:b78f:c4ef:a89c:82cd:b05b:8ee7:ed56]:3338"
+  listen: "[::]:3338"
+  unit: "byte"
+vouchers:
+  accepted_mints:
+    - "http://[fde5:b78f:c4ef:a89c:82cd:b05b:8ee7:ed56]:3338"
+access:
+  minimum_flow:
+    enabled: true
+    bytes_per_second: 4096
+grants:
+  window_range_ms: [200, 30000]
+forwarding:
+  # The real thing on a mesh: fipsd carries the packets and holds the policy.
+  # This also turns on the identity check on the control plane, because a mesh
+  # address names the key that holds it.
+  mode: fips
+network:
+  listen: "[::]:4747"
+peers:
+  # The upstream. Carried for nothing, which on a mesh means unshaped in the
+  # direction toward it — a ceiling there would throttle the acknowledgements
+  # coming back from the client for traffic the client has paid for.
+  "03a86b34ebcf3e5f2e30b1de9023881917a0a96c07009e7b7f60ced29b060d6483":
+    no_charge: true
+    endpoint: "[fd8b:b816:ee09:45b8:6f58:4e2c:2c2e:43b8]:4747"
+market:
+  # What this node takes as payment for its own vouchers, and what a unit of it
+  # buys. Priced per issuer: paper from a mint you trust less is worth less.
+  accept:
+    - mint: "http://sat-mint:8085"
+      unit: sat
+      bytes_per_unit: 1000000
+wallet:
+  # Where this node holds the money it pays peers with.
+  mint: "http://sat-mint:8085"
+  unit: sat

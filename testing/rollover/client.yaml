@@ -1,0 +1,36 @@
+# Buys access from the gateway.
+identity:
+  secret_key: "e320cb6477ed200fa997b77fdbbeb76f26f9b4672ac390cccde71292097b2b4b"
+mint:
+  url: "http://client:3338"
+  listen: "0.0.0.0:3338"
+  unit: "byte"
+vouchers:
+  accepted_mints:
+    - "http://client:3338"
+access:
+  minimum_flow:
+    enabled: true
+    bytes_per_second: 4096
+buying:
+  # Short windows keep the forfeit small and the test quick.
+  window_ms: 1000
+  renew_lead_ms: 300
+channels:
+  initial_capacity: 5000000
+network:
+  listen: "0.0.0.0:4747"
+peers:
+  "02f383c916faa702f91b5e836ed6f12d5f80fb1752ff4db28e6e77997036befd74":
+    endpoint: "gateway:4747"
+market:
+  # What this node takes as payment for its own vouchers, and what a unit of it
+  # buys. Priced per issuer: paper from a mint you trust less is worth less.
+  accept:
+    - mint: "http://sat-mint:8085"
+      unit: sat
+      bytes_per_unit: 1000000
+wallet:
+  # Where this node holds the money it pays peers with.
+  mint: "http://sat-mint:8085"
+  unit: sat

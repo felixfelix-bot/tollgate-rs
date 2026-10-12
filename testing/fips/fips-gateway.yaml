@@ -1,0 +1,24 @@
+# The mesh node the gateway sells transit on.
+#
+# It names no peers: the client and the origin both connect to it, and a link
+# declared from one side is a link. What makes this node the middle of the
+# topology is that it is the only one either of them can reach directly.
+node:
+  identity:
+    # The same key tollgated runs as. It has to be: the control plane checks a
+    # peer's announced key against the mesh address it arrives from, and that
+    # address is derived from this one.
+    nsec: "78d684aa33cd91c862ca9dd42e969b97e511bf36d4848e6a90d967bc174199c1"
+
+tun:
+  enabled: true
+  name: fips0
+  mtu: 1280
+
+transports:
+  udp:
+    bind_addr: "0.0.0.0:2121"
+    # The docker bridge carries 1500, so the mesh gets the headroom it can.
+    mtu: 1472
+
+peers: []

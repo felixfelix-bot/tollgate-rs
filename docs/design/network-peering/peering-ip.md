@@ -138,18 +138,20 @@ Confidentiality and integrity of TollGate messages on the wire is a **separate c
 
 | Choice | What it provides | Risk profile |
 |---|---|---|
-| **Plain HTTP / WS** (default) | None | A network attacker can read messages and **intercept bootstrap tokens** in flight — Cashu ecash is a bearer instrument, so whoever has the token bytes can redeem them at the mint. Returns to the attacker are low (bootstrap amounts are small by design), but the legitimate peer's payment can be stolen, forcing it to retry with a fresh token — **locally disruptive** even though aggregate economic damage is bounded. Spilman BalanceUpdates cannot be hijacked (the receiver's multisig key is required to redeem). Metadata (who paid what, when) is also public. |
+| **Plain HTTP / WS** (default) | None | Spilman funding proofs travel in Accept and RolloverInit, and a voucher is a bearer instrument — whoever has the bytes can redeem them at the issuer. An attacker on the segment can race to redeem intercepted funding, forcing the legitimate peer to re-fund. Amounts are bounded by channel capacity (small for new peers by design), so this is **locally disruptive** rather than economically severe. BalanceUpdates cannot be hijacked — the receiver's multisig key is required to redeem. Metadata (who paid what, when) is also public. |
 | **TLS (HTTPS / WSS)** | Confidentiality + integrity | Standard server-cert TLS; no peer authentication unless mTLS is enabled. |
 | **WireGuard tunnel** | Confidentiality + integrity + peer authentication | The WireGuard pubkey can be the same key as the TollGate pubkey, collapsing transport security and peer authentication into one layer. Natural fit for infrastructure peering. |
 | **Mutual TLS** | Confidentiality + integrity + peer authentication | Cert-chain authentication; suitable for managed infrastructure. |
 
-For open hotspots — where bootstrap tokens are the common payment path — plain HTTP is functional but leaves those tokens visible to anyone on the segment. The economic exposure per peer is small, but a determined attacker on the local segment can disrupt service by racing to redeem intercepted tokens. Operators who want to mitigate this should run TLS/HTTPS at minimum (encrypts the wire so tokens are not visible), or a WireGuard/mTLS tunnel where peer authentication also matters. For infrastructure peering, WireGuard is the natural fit — both transport security and peer authentication in one layer.
+For open hotspots, plain HTTP is functional but leaves funding proofs visible to anyone on the segment. The economic exposure per peer is bounded by channel capacity, but a determined attacker on the local segment can disrupt service by racing to redeem what it intercepts. Operators who want to mitigate this should run TLS/HTTPS at minimum (encrypts the wire so proofs are not visible), or a WireGuard/mTLS tunnel where peer authentication also matters. For infrastructure peering, WireGuard is the natural fit — both transport security and peer authentication in one layer.
 
 ---
 
 ## ResourceAdapter Implementation
 
-`tollgate-net` provides a `ResourceAdapter` implementation that hooks `tollgate-core` into the kernel networking stack. The implementation has three responsibilities: gate forwarding via firewall rules, expose per-peer traffic counters, and (optionally) supply peer metrics for dynamic pricing.
+`tollgate-net` provides a `ResourceAdapter` implementation that hooks `tollgate-core` into the kernel networking stack. It has four responsibilities: gate forwarding via firewall rules, **shape each peer to the rate it bought**, expose per-peer traffic counters, and (optionally) supply peer metrics for operator visibility.
+
+Access and rate are **both per peer, and orthogonal**. A grant buys a rate, so a binary gate cannot express what was sold; and an unpaid peer is not simply blocked, because the minimum flow allowance is itself a rate. Every peer therefore carries two settings at all times.
 
 ### Access Control via Firewall Rules
 
@@ -159,10 +161,29 @@ Access control is enforced via **firewall rules** (nftables, iptables, pf):
 |-------------|----------------|
 | `None` | Drop all forwarded traffic from/to this peer's IP. Allow traffic to local ports (TollGate protocol). |
 | `Active` | Allow forwarded traffic from/to this peer's IP. |
-| `ZeroPrice` | Allow forwarded traffic from/to this peer's IP. |
+| `Free` | Allow forwarded traffic from/to this peer's IP. |
 | `Suspended` | Same as `None` — drop forwarded, allow local. |
 
 `set_peer_access()` translates to firewall rule changes. The peer's IP address (from the TollGate session connection) is the identifier. Bloom filter inference is a no-op — bloom filters are not part of the IP model.
+
+### Per-Peer Rate via Traffic Control
+
+`set_shaping_rate()` translates to a **traffic-control class per peer** (`tc`, HTB or HFSC) on the interface facing it, with a filter matching the peer's IP. The firewall decides *whether* a packet is forwarded; the qdisc decides *how fast*.
+
+```
+# Conceptual shaping for customer 02abc... (10.0.0.42) at 3.12 MiB/s:
+tc class replace dev eth0 parent 1: classid 1:42 htb \
+    rate 3276800bps burst 819200      # ~250 ms of burst, no more
+tc filter replace dev eth0 protocol ip parent 1: prio 1 \
+    u32 match ip dst 10.0.0.42/32 flowid 1:42
+```
+
+Four properties the shaper has to have, each of which follows from the payment model rather than from networking practice:
+
+- **The rate changes often.** A payer may buy as often as `min_window_ms` allows — 200 ms by default — and a grant takes effect on arrival with no acknowledgement. Updating a class is cheap; tearing down and rebuilding one is not, so the class is created once per peer and only its rate is replaced.
+- **Burst stays well under a second.** Capacity left unused early is *not* banked: a peer that idles and then bursts is precisely what grants exist to prevent. A generous burst would hand back exactly what forfeiture takes away.
+- **Zero is never the rate.** A peer with no live grant falls to the minimum flow allowance, which is what leaves it able to send the TopUp that revives it. The floor is applied by `tollgate-core` before the adapter sees the number, so the adapter always receives a rate it can simply apply.
+- **Only the peer's download is shaped.** Its upload is charged through the `received_multiplier`, which drains that peer's own grant faster rather than capping its ingress. A peer that pushes harder exhausts its grant sooner and falls to the allowance — no ingress policer is involved.
 
 ### Per-Peer Metering Counters
 
@@ -191,7 +212,7 @@ table inet tollgate {
 }
 ```
 
-The egress (`delivered`-to-upstream) direction can't be matched this way — the next-hop MAC isn't resolved until after the output path — but the upstream meters that same flow as *its* `received`, so the two sides still reconcile (and bill on the higher value; see [tollgate-metering.md](../core/tollgate-metering.md)). This receive-side count is what surfaces real transit drift between two honest nodes, rather than the consumer blindly echoing the provider's figure.
+The egress (`delivered`-to-upstream) direction can't be matched this way — the next-hop MAC isn't resolved until after the output path. That costs less than it used to: counters are **not exchanged** and are not an input to payment ([tollgate-metering.md](../core/tollgate-metering.md)), so there is no figure to reconcile with the upstream and no drift to arbitrate. What the receive-side count is still good for is the payer's own question — delivered against purchased — which it answers from local numbers alone.
 
 **Interface counters — dedicated link.** If the deployment puts each peer on its own interface (VLAN, GRE tunnel, separate WireGuard peer), the kernel's interface rx/tx byte counters serve as the source directly, with no per-peer rules — simplest when a peer owns its link, but it cannot disambiguate peers that share an interface.
 
@@ -201,25 +222,25 @@ All three sources are interchangeable from `tollgate-core`'s perspective; the ch
 
 IP networks provide no rich link-quality metrics out of the box. `peer_metrics()` returns `None` by default.
 
-If the operator wants dynamic pricing, `tollgate-net` can optionally provide:
+If the operator wants visibility, `tollgate-net` can optionally provide:
 - **Ping-based RTT**: periodic ICMP pings to measure latency
 - **Loss estimation**: derived from ping success rate
 - **Static estimates**: operator-configured values per peer
 
-These are coarse approximations. Dynamic pricing on plain IP is less granular than on networks that publish detailed link-quality metrics.
+These are coarse approximations, and they are not inputs to any price — delivery costs one voucher per unit regardless ([tollgate-vouchers.md](../core/tollgate-vouchers.md)). They exist for operator visibility and capacity decisions.
 
 ---
 
 ## Transport for TollGate Messages
 
-The wire-level transport spec — endpoints, framing, polling cadence, failure detection — is defined in [tollgate-protocol.md](../core/tollgate-protocol.md#transports). v1 supports **HTTP polling** and **WebSocket**, both on default port **4747**. This section covers IP-specific deployment notes only.
+The wire-level transport spec — framing, failure detection, reconnection — is defined in [tollgate-protocol.md](../core/tollgate-protocol.md#transports). v1 uses **raw TCP** on default port **4747**; HTTP polling and WebSocket are recorded there as future alternatives for networks that block unusual ports. This section covers IP-specific deployment notes only.
 
 ### HTTP polling (`POST /tollgate/v1/exchange`)
 
 - Suitable for constrained clients and open-access hotspot scenarios.
 - Works through NATs, proxies, and firewalls — any HTTP client can participate.
 - Stateless on the server: no need to maintain open connections per peer.
-- Polling cadence equals the metering interval (default 5s); clients may poll more aggressively during initial channel setup.
+- Polling cadence is the client's choice, bounded by the grant window it buys; clients may poll more aggressively during initial channel setup.
 
 ### WebSocket (`GET /tollgate/v1/ws`)
 
@@ -229,14 +250,14 @@ The wire-level transport spec — endpoints, framing, polling cadence, failure d
 
 ### Future: Tunnel-Based Transport
 
-For authenticated deployments, the same HTTP / WebSocket transports can run inside an encrypted tunnel (WireGuard, TLS). The transport spec is unchanged — the tunnel is invisible to TollGate.
+For authenticated deployments, raw TCP runs inside an encrypted tunnel (WireGuard, IPsec) exactly as it does bare. The transport spec is unchanged — the tunnel is invisible to TollGate. On FIPS this is what Noise IK already provides, which is why nothing needs wrapping there.
 
 ---
 
 ## Limitations
 
 - **No automatic failover**: if an upstream peer goes down, the operator must reconfigure routing. There is no protocol-level rerouting.
-- **No rich dynamic pricing**: without per-link metrics, pricing inputs are limited to coarse estimates (ping RTT, loss) or static configuration.
+- **No rich link metrics**: without per-link measurement, operator visibility is limited to coarse estimates (ping RTT, loss) or static configuration. This does not affect pricing, which the protocol does not do.
 - **Simpler peer discovery**: dynamic probing works on a local network but does not scale to multi-hop topologies. Operators bridging multiple subnets configure peers statically.
 
 ---
@@ -246,7 +267,8 @@ For authenticated deployments, the same HTTP / WebSocket transports can run insi
 | Decision | Resolution | Rationale |
 |----------|-----------|-----------|
 | Authentication | Unauthenticated by default | Open access is the primary use case; payment is the gatekeeper |
-| Access control | Firewall rules (nftables/iptables) | Standard IP mechanism, per-peer by IP |
+| Access control | Firewall rules (nftables/iptables), per peer by IP | Standard IP mechanism, and the forwarding decision is where it belongs |
+| Rate enforcement | A `tc` class per peer, rate replaced as grants arrive | A grant buys a rate, which a binary gate cannot express. Burst stays under a second because unused capacity is not banked |
 | Metering counters | nftables accounting (default) or interface stats | Per-peer granularity at the kernel level |
 | Peer metrics | None by default; optional ICMP / static | No built-in metrics on plain IP |
 | Peer discovery | Dynamic probing, static config, or open access | Local network probing; static config for multi-hop |

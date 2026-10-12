@@ -1,0 +1,70 @@
+# TollGate node configuration.
+#
+# What is here is enough to run: the node comes up, peers with anything that
+# dials it, and gates the router's forwarding path with nftables and tc. What
+# it will not do until you fill in the market section is sell anything.
+#
+# Every setting has a default, so this file only states what a router needs
+# different from one. `tollgated --help` and the comments in
+# `crates/tollgate-net/src/config.rs` are the full list.
+
+identity:
+  # Written on first boot by /etc/uci-defaults/90-tollgate-setup, because a
+  # node that generated a new key each start would be a new node each start —
+  # its peers would not recognise it and the vouchers they hold would be
+  # claims on an issuer that no longer exists.
+  secret_key: null
+
+mint:
+  # This node's own mint, which peers fund channels against. It has to be
+  # reachable *by them*, so the address a peer sees is the one to put here —
+  # by default the router's LAN address.
+  url: "http://192.168.1.1:3338"
+  listen: "0.0.0.0:3338"
+  unit: "byte"
+
+access:
+  minimum_flow:
+    # A trickle for peers that have paid nothing, which is what lets them
+    # reach the mint to buy vouchers in the first place. Small, because it is
+    # given away and can be farmed.
+    enabled: true
+    bytes_per_second: 4096
+
+market:
+  # What this router takes as payment for its own vouchers, and what a unit of
+  # it buys. Priced per issuer: paper from a mint you trust less is worth less,
+  # and adding an issuer here is how you say you will take it at all.
+  accept:
+    - mint: "https://mint.minibits.cash/Bitcoin"
+      unit: sat
+      # Priced so that 1000 sat buys about an hour at 5 MB/s: that is 18 GB, so
+      # 18,000,000 bytes to the sat — around 60 sat per GiB.
+      #
+      # Bytes, not bits. If you meant 5 Mbit/s, the number is 2250000.
+      #
+      # Raise it to sell more cheaply and lower it to charge more, or set it to
+      # zero to stop taking this issuer's paper. It is a live setting:
+      # `tolltop`'s pricing tab changes it on a running router, and the change
+      # binds the next buyer rather than anything already sold.
+      bytes_per_unit: 18000000
+
+wallet:
+  # Where this node buys the money it pays *its* upstream with, and where it
+  # keeps what it is paid. Top it up from `tolltop`, on the wallet tab.
+  mint: "https://mint.minibits.cash/Bitcoin"
+  unit: sat
+  # The balance is bearer tokens: this file *is* the money. It lives beside
+  # the config so that whatever backs one up backs up the other, and
+  # /lib/upgrade/keep.d carries both across a sysupgrade.
+  file: "/etc/tollgate/wallet.sqlite"
+
+forwarding:
+  # The real thing on a router: the kernel forwards, nftables gates, tc shapes.
+  mode: nftables
+  # The interface facing the peers being sold to. `br-lan` on a stock OpenWrt
+  # router; change it if you are selling on something else.
+  interface: br-lan
+
+network:
+  listen: "0.0.0.0:4747"

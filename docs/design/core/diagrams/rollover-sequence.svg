@@ -89,10 +89,10 @@
   <text x="40" y="288" text-anchor="middle" class="annot">Overlap</text>
 
   <rect x="100" y="262" width="530" height="60" rx="4" fill="none" stroke="#303040" stroke-width="1" stroke-dasharray="4,3"/>
-  <text x="625" y="275" text-anchor="start" class="annot">at each interval</text>
+  <text x="625" y="275" text-anchor="start" class="annot">at each grant</text>
 
   <line x1="170" y1="290" x2="548" y2="290" stroke="#5080c0" stroke-width="1.5" marker-end="url(#aR)"/>
-  <text x="360" y="283" text-anchor="middle" class="alabel" fill="#5080c0">BalanceUpdate on OLD channel (still has capacity)</text>
+  <text x="360" y="283" text-anchor="middle" class="alabel" fill="#5080c0">TopUp on OLD channel (still has capacity)</text>
 
   <text x="360" y="313" text-anchor="middle" class="annot">old channel drains toward 100%; new channel idle</text>
 
@@ -103,7 +103,7 @@
   <text x="40" y="373" text-anchor="middle" class="annot">Switch</text>
 
   <line x1="170" y1="365" x2="548" y2="365" stroke="#5080c0" stroke-width="1.5" marker-end="url(#aR)"/>
-  <text x="360" y="358" text-anchor="middle" class="alabel" fill="#5080c0">BalanceUpdate on NEW channel (old is exhausted)</text>
+  <text x="360" y="358" text-anchor="middle" class="alabel" fill="#5080c0">TopUp on NEW channel (old is exhausted)</text>
 
   <text x="360" y="388" text-anchor="middle" class="annot">old channel settles with mint when receiver is ready</text>
 

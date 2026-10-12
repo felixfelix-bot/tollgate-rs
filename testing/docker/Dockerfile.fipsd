@@ -1,0 +1,58 @@
+# syntax=docker/dockerfile:1
+# The FIPS daemon, built from the checkout in `reference/`.
+#
+# Built with a context that scripts/build-fips.sh materialises from
+# `git archive`, rather than with `reference/fips` itself: that tree carries a
+# multi-gigabyte `target/` which docker would otherwise upload on every build.
+# Working from the archive also means only committed files reach the image, so
+# a stray edit cannot quietly change what the topology runs.
+#
+# This produces the mesh half of the picture. The tollgate half is layered on
+# top of it by Dockerfile.fips.
+
+# ---- Stage 1: build ----
+FROM rust:1.90-slim-trixie AS builder
+
+WORKDIR /src
+
+# `libdbus-1-dev` because FIPS links bluer for Bluetooth transports on glibc
+# Linux, and bluer talks to BlueZ over D-Bus. `clang` for the bindgen those
+# bindings run. The daemon never opens a Bluetooth link here; it still has to
+# link.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        pkg-config git ca-certificates libdbus-1-dev clang && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY . .
+
+# The version string embeds a git hash the archive does not carry. FIPS's
+# build script treats that as empty rather than failing, so nothing here has
+# to reconstruct a `.git`.
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/src/target \
+    cargo build --release --bin fips --bin fipsctl && \
+    cp target/release/fips /fips && \
+    cp target/release/fipsctl /fipsctl
+
+# ---- Stage 2: runtime ----
+FROM debian:trixie-slim
+
+# `libdbus-1-3` pairs with what the daemon linked against. iproute2 inspects
+# fips0, python3 serves the blob the transfer test pulls, and jq reads the
+# control sockets.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        iproute2 iputils-ping ca-certificates curl jq netcat-openbsd \
+        python3 libdbus-1-3 && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /fips /usr/local/bin/fips
+COPY --from=builder /fipsctl /usr/local/bin/fipsctl
+
+# Where the daemon puts its control socket, and the first place tollgated
+# looks for it. Mirrors systemd's `RuntimeDirectory=fips`.
+RUN mkdir -p /run/fips
+
+ENTRYPOINT ["fips", "--config", "/etc/fips/fips.yaml"]

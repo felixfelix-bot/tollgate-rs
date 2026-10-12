@@ -1,0 +1,102 @@
+# Selling transit across a FIPS mesh.
+#
+# Every container runs a FIPS daemon; the docker network carries nothing but
+# the mesh's own UDP. What the test measures travels over fips0, encrypted and
+# routed by FIPS, and the gateway is the only node either of the other two can
+# reach directly:
+#
+#   client ──fips── gateway ──fips── origin
+#
+# So a packet from the client to the origin is transit at the gateway, which is
+# the only thing a transit policy is allowed to touch. The client's payments,
+# by contrast, are addressed to the gateway itself and are never shaped — the
+# same distinction the kernel topology draws with a separate interface, here
+# drawn by the protocol.
+x-mesh-node: &mesh-node
+  image: tollgate-fips-test:latest
+  # fipsd creates a TUN device and puts an address on it.
+  cap_add: [NET_ADMIN]
+  devices:
+    - /dev/net/tun:/dev/net/tun
+  sysctls:
+    # Mesh addresses are IPv6, and docker leaves IPv6 off in a container by
+    # default. fips0 would come up with nowhere to put its address.
+    net.ipv6.conf.all.disable_ipv6: 0
+  environment:
+    RUST_LOG: "${RUST_LOG:-tollgate_net=debug,info}"
+
+services:
+  # The money. A sat-denominated mint standing in for the likes of minibits:
+  # a node buys its paper here and pays a peer with it, because a peer sells
+  # capacity for money it can hold, not for its own vouchers.
+  sat-mint:
+    image: cashubtc/mintd:latest
+    command: ["cdk-mintd", "--config", "/etc/cdk/mintd.toml"]
+    volumes:
+      - ../mint/mintd.toml:/etc/cdk/mintd.toml:ro
+    networks:
+      mesh:
+        ipv4_address: 172.30.0.5
+  gateway:
+    <<: *mesh-node
+    volumes:
+      - ./fips-gateway.yaml:/etc/fips/fips.yaml:ro
+      - ./gateway.yaml:/etc/tollgate/gateway.yaml:ro
+    command:
+      - tollgated
+      - -c
+      - /etc/tollgate/gateway.yaml
+      - --control-socket
+      - /run/tollgate.sock
+    networks:
+      mesh:
+        ipv4_address: 172.30.0.20
+
+  origin:
+    <<: *mesh-node
+    volumes:
+      - ./fips-origin.yaml:/etc/fips/fips.yaml:ro
+      - ./origin.yaml:/etc/tollgate/origin.yaml:ro
+    # The blob is far larger than anything the client will pull in the time
+    # allowed, so the transfer is cut off by the deadline rather than by the
+    # end of the file — which is what makes the byte count a rate.
+    entrypoint: ["/usr/local/bin/fips-entrypoint.sh", "/bin/sh", "-c"]
+    command:
+      - >
+        head -c 200000000 /dev/zero > /srv/blob &&
+        (cd /srv && python3 -m http.server 8080 --bind :: &) &&
+        exec tollgated -c /etc/tollgate/origin.yaml
+        --control-socket /run/tollgate.sock
+    networks:
+      mesh:
+        ipv4_address: 172.30.0.10
+
+  client:
+    <<: *mesh-node
+    volumes:
+      - ./fips-client.yaml:/etc/fips/fips.yaml:ro
+      - ./client.yaml:/etc/tollgate/client.yaml:ro
+    command:
+      - tollgated
+      - -c
+      - /etc/tollgate/client.yaml
+      - --control-socket
+      - /run/tollgate.sock
+      - --demand
+      - "2000000"
+    networks:
+      mesh:
+        ipv4_address: 172.30.0.30
+    depends_on:
+      - gateway
+      - origin
+      - sat-mint
+
+networks:
+  # Carries the mesh's UDP transport and nothing else. Fixed addresses because
+  # each node's config names the gateway by docker hostname on this network,
+  # and because a failure should be reproducible.
+  mesh:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

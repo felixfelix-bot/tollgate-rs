@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 360" font-family="monospace" font-size="12">
+  <style>
+    text          { fill: #e0e0e0; }
+    text.title    { font-size: 16px; font-weight: bold; }
+    text.subtitle { font-size: 12px; fill: #909090; }
+    text.nlabel   { font-size: 14px; font-weight: bold; }
+    text.nrole    { font-size: 10px; fill: #909090; }
+    text.annot    { font-size: 10px; fill: #909090; font-style: italic; }
+    text.caption  { font-size: 11px; fill: #707080; font-style: italic; }
+
+    .bg      { fill: #0d1117; }
+    .callout { fill: #151520; }
+    .node    { fill: #2e3a5e; }
+
+    @media (prefers-color-scheme: light) {
+      text          { fill: #1f2328; }
+      text.subtitle, text.nrole, text.annot { fill: #656d76; }
+      text.caption  { fill: #7c8186; }
+      .bg           { fill: #ffffff; }
+      .callout      { fill: #f6f8fa; }
+      .node         { fill: #ddf4ff; }
+    }
+  </style>
+
+  <defs>
+    <marker id="vlSat" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <polygon points="0,0 7,2.5 0,5" fill="#d0a040"/>
+    </marker>
+    <marker id="vlVou" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <polygon points="0,0 7,2.5 0,5" fill="#5080c0"/>
+    </marker>
+    <marker id="vlSvc" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+      <polygon points="0,0 7,2.5 0,5" fill="#40a060"/>
+    </marker>
+  </defs>
+
+  <rect width="800" height="360" rx="8" class="bg"/>
+
+  <text x="400" y="28" text-anchor="middle" class="title">Voucher Lifecycle</text>
+  <text x="400" y="46" text-anchor="middle" class="subtitle">Redemption retires the issuer's own liability &#8212; the cost is the service</text>
+
+  <rect x="60" y="90" width="190" height="155" rx="8" class="node" stroke="#40a060" stroke-width="2"/>
+  <text x="155" y="115" text-anchor="middle" class="nlabel">Node B</text>
+  <text x="155" y="133" text-anchor="middle" class="nrole">issuer + provider</text>
+  <text x="155" y="147" text-anchor="middle" class="nrole">runs its own mint</text>
+
+  <rect x="550" y="90" width="190" height="155" rx="8" class="node" stroke="#5080c0" stroke-width="2"/>
+  <text x="645" y="115" text-anchor="middle" class="nlabel">Client A</text>
+  <text x="645" y="133" text-anchor="middle" class="nrole">holder</text>
+
+  <text x="400" y="108" text-anchor="middle" class="annot" fill="#d0a040">&#9312; A buys B-vouchers (market)</text>
+  <line x1="545" y1="118" x2="258" y2="118" stroke="#d0a040" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#vlSat)"/>
+
+  <text x="400" y="140" text-anchor="middle" class="annot" fill="#5080c0">B issues vouchers against its capacity</text>
+  <line x1="255" y1="150" x2="542" y2="150" stroke="#5080c0" stroke-width="2" marker-end="url(#vlVou)"/>
+
+  <text x="400" y="180" text-anchor="middle" class="annot" fill="#5080c0">&#9313; A spends B-vouchers with B</text>
+  <line x1="545" y1="190" x2="258" y2="190" stroke="#5080c0" stroke-width="2" marker-end="url(#vlVou)"/>
+
+  <text x="400" y="212" text-anchor="middle" class="annot" fill="#40a060">&#9314; B delivers &#8212; and retires the voucher</text>
+  <line x1="255" y1="222" x2="542" y2="222" stroke="#40a060" stroke-width="2" marker-end="url(#vlSvc)"/>
+
+  <rect x="100" y="266" width="600" height="46" rx="4" class="callout" stroke="#40a060" stroke-width="1"/>
+  <text x="400" y="284" text-anchor="middle" class="annot" fill="#40a060">Redeeming cancels B's own claim &#8212; no mint round-trip and nobody to trust.</text>
+  <text x="400" y="300" text-anchor="middle" class="annot">B may also accept other mints' vouchers as payment &#8212; see accepted mints.</text>
+
+  <text x="400" y="338" text-anchor="middle" class="caption">How fast a spend may be used up is a protocol rule. The voucher itself is just a quantity.</text>
+</svg>

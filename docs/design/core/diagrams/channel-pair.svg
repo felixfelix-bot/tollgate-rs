@@ -79,5 +79,5 @@
   <text x="448" y="259" class="annot">payment (Spilman channel)</text>
 
   <!-- Caption -->
-  <text x="350" y="290" text-anchor="middle" class="caption">The provider charges — the peer receiving the service pays via their Spilman channel</text>
+  <text x="350" y="290" text-anchor="middle" class="caption">The provider is paid in its own vouchers, via the receiving peer's Spilman channel</text>
 </svg>

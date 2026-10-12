@@ -1,0 +1,42 @@
+# Two nodes and real money.
+#
+# Every other topology here runs a `sat-mint` container whose fake Lightning
+# backend pays its own invoices, so a node tops itself up in milliseconds and
+# nothing about the money is real. This one points both nodes at minibits, out
+# on the actual internet.
+#
+# What that changes is one step and everything downstream of it: a top-up
+# produces an invoice that nobody settles automatically. Until somebody pays
+# it, the client holds nothing, cannot fund a channel, and sits on the
+# gateway's 4 KiB/s allowance. Pay it and the rest runs itself.
+#
+#   docker compose -f testing/demo/docker-compose.yml up -d
+#   docker compose -f testing/demo/docker-compose.yml exec client tolltop
+#     → wallet tab → t → 200 → scan the QR → watch the balance land
+#
+# The wallets are named volumes rather than container layers, because they hold
+# bearer tokens: `down` without `-v` keeps whatever was not spent.
+services:
+  gateway:
+    image: tollgate-test:latest
+    command: ["-c", "/etc/tollgate/gateway.yaml", "--control-socket", "/run/tollgate.sock"]
+    volumes:
+      - ./gateway.yaml:/etc/tollgate/gateway.yaml:ro
+      - gateway-wallet:/var/lib/tollgate
+    environment:
+      RUST_LOG: "${RUST_LOG:-tollgate_net=debug,info}"
+
+  client:
+    image: tollgate-test:latest
+    command: ["-c", "/etc/tollgate/client.yaml", "--control-socket", "/run/tollgate.sock"]
+    volumes:
+      - ./client.yaml:/etc/tollgate/client.yaml:ro
+      - client-wallet:/var/lib/tollgate
+    environment:
+      RUST_LOG: "${RUST_LOG:-tollgate_net=debug,info}"
+    depends_on:
+      - gateway
+
+volumes:
+  gateway-wallet:
+  client-wallet:

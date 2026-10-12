@@ -1,5 +1,0 @@
-# Client for the metering test. Runs `consume`: pays once, then polls for
-# MeteringReports and auto-tops-up before the balance runs out. A single process,
-# so every top-up is the same peer identity (no persistent key needed).
-unit: "bytes"
-firewall: sets-only

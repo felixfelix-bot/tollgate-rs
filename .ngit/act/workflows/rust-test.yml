@@ -1,0 +1,66 @@
+name: Rust test
+
+# Nostr CI (ngit-ci) workflow. See .ngit/README.md for the authorization
+# policy, how to read results, and the checks deliberately not run here.
+#
+# This mirrors the `check` job of .github/workflows/ci.yml, which is left
+# untouched: the same pinned toolchain (rust-toolchain.toml pins 1.94.1) and
+# the same protoc install and four commands in the same order, run from the workspace root.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.94.1"
+          components: rustfmt, clippy
+      # Cache only; the coordinator can run with caching disabled, so a cache
+      # failure must not fail the job.
+      - name: Restore Rust build cache
+        continue-on-error: true
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/git
+            ~/.cargo/registry
+            target
+          key: rust-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            rust-${{ runner.os }}-
+      # cdk's signatory reaches gRPC through prost, whose build script shells
+      # out to protoc.
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends protobuf-compiler
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Build
+        run: cargo build --workspace --all-targets
+      - name: Test
+        run: cargo test --workspace
+
+  # Guards the esp32-ready constraint: tollgate-core and tollgate-protocol are
+  # no_std, so they must build for a target that has no std.
+  no_std:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.94.1"
+          targets: thumbv7em-none-eabihf
+      - name: Build core + protocol for a bare-metal target
+        run: cargo build -p tollgate-protocol -p tollgate-core --target thumbv7em-none-eabihf

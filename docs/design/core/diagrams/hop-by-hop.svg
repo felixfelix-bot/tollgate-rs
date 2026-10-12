@@ -52,12 +52,12 @@
 
   <rect x="310" y="80" width="130" height="70" rx="8" class="node" stroke="#d0a040" stroke-width="2"/>
   <text x="375" y="108" text-anchor="middle" class="nlabel">Relay</text>
-  <text x="375" y="125" text-anchor="middle" class="nrole">charges 10 sat/unit</text>
-  <text x="375" y="138" text-anchor="middle" class="nrole">pays 3 sat/unit</text>
+  <text x="375" y="125" text-anchor="middle" class="nrole">paid in Relay-vouchers</text>
+  <text x="375" y="138" text-anchor="middle" class="nrole">pays in Gateway-vouchers</text>
 
   <rect x="580" y="80" width="130" height="70" rx="8" class="node" stroke="#40a060" stroke-width="2"/>
   <text x="645" y="108" text-anchor="middle" class="nlabel">Gateway</text>
-  <text x="645" y="125" text-anchor="middle" class="nrole">charges 3 sat/unit</text>
+  <text x="645" y="125" text-anchor="middle" class="nrole">paid in Gateway-vouchers</text>
   <text x="645" y="138" text-anchor="middle" class="nrole">has direct internet</text>
 
   <!-- Internet symbol -->
@@ -79,11 +79,11 @@
 
   <!-- Payment: Client → Relay (net payment) -->
   <line x1="170" y1="142" x2="303" y2="142" stroke="#d0a040" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#hhPay)"/>
-  <text x="240" y="156" text-anchor="middle" class="annot" fill="#d0a040">net: Client pays 10 sat/unit</text>
+  <text x="240" y="156" text-anchor="middle" class="annot" fill="#d0a040">Client pays 1 voucher/unit</text>
 
   <!-- Payment: Relay → Gateway (net payment) -->
   <line x1="440" y1="142" x2="573" y2="142" stroke="#d0a040" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#hhPay)"/>
-  <text x="510" y="156" text-anchor="middle" class="annot" fill="#d0a040">net: Relay pays 3 sat/unit</text>
+  <text x="510" y="156" text-anchor="middle" class="annot" fill="#d0a040">Relay pays 1 voucher/unit</text>
 
   <!-- Independent relationship boxes -->
   <rect x="120" y="180" width="230" height="30" rx="4" fill="none" stroke="#303040" stroke-width="1" stroke-dasharray="4,3"/>
@@ -94,10 +94,10 @@
 
   <!-- Margin callout -->
   <rect x="240" y="230" width="270" height="42" rx="4" class="callout" stroke="#d0a040" stroke-width="1"/>
-  <text x="375" y="248" text-anchor="middle" class="annot" fill="#d0a040">Relay's margin: 10 - 3 = 7 sat/unit profit</text>
-  <text x="375" y="263" text-anchor="middle" class="annot" fill="#909090">markup covers relay cost + operator profit</text>
+  <text x="375" y="248" text-anchor="middle" class="annot" fill="#d0a040">Relay's margin: what its own vouchers fetch &#8722; what Gateway's cost it</text>
+  <text x="375" y="263" text-anchor="middle" class="annot" fill="#909090">the spread is set on the market, not in the protocol</text>
 
   <!-- Caption -->
   <text x="400" y="300" text-anchor="middle" class="caption">Client doesn't know about Gateway. Gateway doesn't know about Client.</text>
-  <text x="400" y="317" text-anchor="middle" class="caption">Each hop prices independently. Relay profits from the spread.</text>
+  <text x="400" y="317" text-anchor="middle" class="caption">Every hop is 1 voucher per unit. The Relay profits on the spread, not on a rate.</text>
 </svg>

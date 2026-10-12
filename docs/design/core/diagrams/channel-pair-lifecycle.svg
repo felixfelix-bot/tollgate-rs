@@ -90,8 +90,8 @@
   <path d="M 290,195 Q 290,260 580,235" fill="none" stroke="#d0a040" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#ay)"/>
   <text x="430" y="252" text-anchor="middle" class="elabel">cooperative close</text>
 
-  <!-- Zero-price shortcut: dashed arrow into Active -->
-  <text x="110" y="248" text-anchor="middle" class="elabel">zero-price:</text>
+  <!-- Free shortcut: dashed arrow into Active -->
+  <text x="110" y="248" text-anchor="middle" class="elabel">no charge:</text>
   <text x="110" y="261" text-anchor="middle" class="elabel">skip Funding</text>
   <path d="M 110,228 Q 165,200 220,180" fill="none" stroke="#50c050" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#ag)"/>
 

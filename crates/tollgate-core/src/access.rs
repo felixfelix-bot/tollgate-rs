@@ -1,66 +1,46 @@
-//! Access control levels (see `docs/design/core/tollgate-access-control.md`).
+//! The delivery gate.
+//!
+//! Core decides *what* to enforce; the host's resource adapter decides *how* —
+//! a FIPS delivery filter, an nftables rule, a token bucket. The level says only
+//! whether delivery is allowed and whether it is metered. How much a peer has
+//! left to spend lives in [`crate::grant`] and never surfaces here.
 
-/// What a peer is currently allowed to do.
-#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
+/// A peer's delivery status. Exactly one at any time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AccessLevel {
-    /// Blocked; no resource delivery; hidden from discovery. The default for a
-    /// new peer — no service until it pays.
+    /// Connected, nothing funded. No delivery; TollGate messages still flow, so
+    /// the peer can negotiate its way out of this state.
     #[default]
     None,
-    /// Allowed and metered (charged per the agreed price).
+    /// Channels funded. Delivery allowed, metered, shaped to what was bought.
     Active,
-    /// Allowed but free — delivered without metering.
-    ZeroPrice,
-    /// Blocked, e.g. after the balance is exhausted; hidden from discovery.
-    /// Distinct from [`None`](Self::None) so the host can re-admit on top-up.
+    /// Neither side charges the other. Delivery allowed and unmetered — a
+    /// decision about the relationship, not a price set to zero.
+    Free,
+    /// Channel exhausted past the rollover timeout. Delivery blocked, but the
+    /// peer can still negotiate, so it recovers without reconnecting.
     Suspended,
 }
 
 impl AccessLevel {
-    /// Whether resources may be delivered to/from the peer.
-    pub const fn allows_delivery(self) -> bool {
-        matches!(self, Self::Active | Self::ZeroPrice)
+    /// Whether resources may be delivered for or through this peer.
+    pub fn delivery_allowed(self) -> bool {
+        matches!(self, Self::Active | Self::Free)
     }
 
-    /// Whether delivery is charged for.
-    pub const fn is_metered(self) -> bool {
+    /// Whether traffic is drawn against a grant. `Free` peers are delivered to
+    /// without any grant existing.
+    pub fn metered(self) -> bool {
         matches!(self, Self::Active)
     }
 
-    /// Whether the peer should be advertised to others (e.g. included in a FIPS
-    /// bloom filter). Mirrors delivery: blocked peers are hidden.
-    pub const fn is_visible(self) -> bool {
-        self.allows_delivery()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn predicate_truth_table() {
-        use AccessLevel::*;
-        // (level, allows_delivery, is_metered, is_visible)
-        let cases = [
-            (None, false, false, false),
-            (Active, true, true, true),
-            (ZeroPrice, true, false, true),
-            (Suspended, false, false, false),
-        ];
-        for (level, deliver, metered, visible) in cases {
-            assert_eq!(
-                level.allows_delivery(),
-                deliver,
-                "{level:?} allows_delivery"
-            );
-            assert_eq!(level.is_metered(), metered, "{level:?} is_metered");
-            assert_eq!(level.is_visible(), visible, "{level:?} is_visible");
-        }
-    }
-
-    #[test]
-    fn default_is_blocked() {
-        assert_eq!(AccessLevel::default(), AccessLevel::None);
+    /// Whether the peer should appear in reachability advertisements.
+    ///
+    /// In FIPS this is bloom-filter inclusion: advertising a peer we will not
+    /// deliver through invites other nodes to route into a blackhole. It is
+    /// inferred from the level rather than set separately, so the two can never
+    /// disagree.
+    pub fn advertise(self) -> bool {
+        self.delivery_allowed()
     }
 }

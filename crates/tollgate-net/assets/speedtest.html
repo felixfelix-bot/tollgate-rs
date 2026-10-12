@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<!--
+  The speedtest page a node serves over the mesh.
+
+  Everything is inline on purpose. A client that reaches this page reaches it
+  across FIPS, and a mesh is not required to have a route to the internet at
+  all — a page that pulled a font, a framework or a logo from a CDN would show
+  a broken layout to exactly the audience it is for.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TollGate speed test</title>
+    <style>
+      :root {
+        --ink: #f5f7fa;
+        --dim: #7d8794;
+        --accent: #6ee7b7;
+        --bad: #f87171;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        background: #10141a;
+        color: var(--ink);
+        font: 400 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, Helvetica, Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 24px;
+      }
+      h1 {
+        font-size: 15px;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--dim);
+        margin: 0 0 8px;
+      }
+      .peer {
+        font-size: 12px;
+        color: var(--dim);
+        word-break: break-all;
+        max-width: 30rem;
+        margin: 0 0 40px;
+      }
+      .readout {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        min-height: 96px;
+      }
+      .value {
+        font-size: 88px;
+        font-weight: 200;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+        transition: color 0.3s;
+      }
+      .value.settled { color: var(--accent); }
+      .value.failed { color: var(--bad); font-size: 40px; }
+      .unit { font-size: 24px; font-weight: 300; color: var(--dim); }
+      .phase {
+        margin-top: 18px;
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--dim);
+        min-height: 20px;
+      }
+      .modes {
+        margin-top: 36px;
+        display: flex;
+        gap: 8px;
+      }
+      button {
+        background: transparent;
+        color: var(--dim);
+        border: 1px solid #2a323d;
+        border-radius: 999px;
+        padding: 8px 20px;
+        font: inherit;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      button[aria-pressed="true"] { color: var(--ink); border-color: #4b5563; }
+      button:disabled { opacity: 0.4; cursor: default; }
+      .detail {
+        margin-top: 28px;
+        font-size: 12px;
+        color: var(--dim);
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Your speed through this TollGate</h1>
+    <p class="peer" id="peer">measuring against <span id="origin"></span></p>
+
+    <div class="readout">
+      <div class="value" id="value">0</div>
+      <div class="unit">Mbps</div>
+    </div>
+    <div class="phase" id="phase">starting</div>
+
+    <div class="modes">
+      <button id="mode-down" aria-pressed="true">Download</button>
+      <button id="mode-up" aria-pressed="false">Upload</button>
+      <button id="again">Again</button>
+    </div>
+
+    <p class="detail" id="detail"></p>
+
+    <script>
+      const INFO = "/tollgate/speedtest/v1/info";
+      const DOWN = "/tollgate/speedtest/v1/down";
+      const UP = "/tollgate/speedtest/v1/up";
+
+      const el = (id) => document.getElementById(id);
+      el("origin").textContent = location.host;
+
+      let settings = {
+        streams: 5,
+        warmup_ms: 1500,
+        duration_ms: 10000,
+        max_bytes: 268435456,
+      };
+      let direction = "down";
+      let running = false;
+
+      /**
+       * One measurement.
+       *
+       * The warm-up is discarded rather than averaged in. A fresh TCP flow
+       * spends its first second in slow start, and over a mesh it is also
+       * paying for a Noise handshake and whatever the tollgate's shaper does
+       * before the grant it was bought under is in force. Counting that window
+       * would report the ramp, not the rate.
+       */
+      async function measure() {
+        if (running) return;
+        running = true;
+        el("again").disabled = true;
+        el("value").className = "value";
+        el("detail").textContent = "";
+
+        const control = new AbortController();
+        const started = performance.now();
+        const warmedAt = started + settings.warmup_ms;
+        const endsAt = started + settings.warmup_ms + settings.duration_ms;
+
+        // Bytes seen after the warm-up window closes, and the moment counting
+        // actually began — which is the first byte after the window, not the
+        // window's nominal end, so a slow link is not charged for the gap.
+        let counted = 0;
+        let countingFrom = null;
+        const record = (n) => {
+          const now = performance.now();
+          if (now < warmedAt) return;
+          if (countingFrom === null) countingFrom = now;
+          counted += n;
+        };
+
+        const rate = () => {
+          if (countingFrom === null) return 0;
+          const seconds = (performance.now() - countingFrom) / 1000;
+          return seconds > 0 ? (counted * 8) / seconds / 1e6 : 0;
+        };
+
+        const ticker = setInterval(() => {
+          const now = performance.now();
+          el("phase").textContent =
+            now < warmedAt ? "warming up" : direction === "down" ? "downloading" : "uploading";
+          if (now >= warmedAt) el("value").textContent = rate().toFixed(1);
+          if (now >= endsAt) control.abort();
+        }, 100);
+
+        const worker = direction === "down" ? pull : push;
+        const workers = [];
+        for (let i = 0; i < settings.streams; i++) {
+          workers.push(worker(control.signal, record, i));
+        }
+
+        let failure = null;
+        try {
+          await Promise.all(workers);
+        } catch (e) {
+          if (e.name !== "AbortError") failure = e;
+        } finally {
+          clearInterval(ticker);
+          control.abort();
+        }
+
+        if (failure) {
+          el("value").className = "value failed";
+          el("value").textContent = "unreachable";
+          el("phase").textContent = "";
+          el("detail").textContent = String(failure.message || failure);
+        } else {
+          const mbps = rate();
+          el("value").className = "value settled";
+          el("value").textContent = mbps.toFixed(1);
+          el("phase").textContent = direction === "down" ? "download" : "upload";
+          el("detail").textContent =
+            `${(counted / 1e6).toFixed(1)} MB over ${settings.streams} streams, ` +
+            `${(settings.duration_ms / 1000).toFixed(0)}s after a ` +
+            `${(settings.warmup_ms / 1000).toFixed(1)}s warm-up`;
+        }
+
+        running = false;
+        el("again").disabled = false;
+      }
+
+      /**
+       * Pull bytes until the run is aborted.
+       *
+       * Each request asks for a bounded slice rather than an endless stream, and
+       * the loop just asks again — a node has to be able to cap what one request
+       * costs it, and a client that would rather measure for longer says so by
+       * coming back.
+       */
+      async function pull(signal, record, index) {
+        const chunk = Math.min(settings.max_bytes, 32 * 1024 * 1024);
+        let sequence = 0;
+        while (!signal.aborted) {
+          const url = `${DOWN}?bytes=${chunk}&stream=${index}&n=${sequence++}`;
+          const response = await fetch(url, { signal, cache: "no-store" });
+          if (!response.ok) throw new Error(`${response.status} from the byte source`);
+          const reader = response.body.getReader();
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            record(value.length);
+          }
+        }
+      }
+
+      // One buffer, filled once and posted repeatedly. Random rather than zeroed
+      // so nothing along the path can claim credit for compressing it.
+      // Filled in 64 KiB passes because `getRandomValues` refuses anything
+      // longer in one call — a single call for the whole megabyte throws
+      // QuotaExceededError, and throwing here would take the whole script with
+      // it before a single handler is bound.
+      const OUTBOUND = (() => {
+        const bytes = new Uint8Array(1024 * 1024);
+        const limit = 65536;
+        for (let at = 0; at < bytes.length; at += limit) {
+          crypto.getRandomValues(bytes.subarray(at, Math.min(at + limit, bytes.length)));
+        }
+        return bytes;
+      })();
+
+      /**
+       * Push bytes until the run is aborted.
+       *
+       * Counted per completed request rather than per chunk: `fetch` reports no
+       * progress while a body uploads, so the resolution of the upload figure is
+       * one buffer. That is why the buffer is a megabyte and not larger.
+       */
+      async function push(signal, record) {
+        while (!signal.aborted) {
+          const response = await fetch(UP, {
+            method: "POST",
+            body: OUTBOUND,
+            signal,
+            cache: "no-store",
+            headers: { "content-type": "application/octet-stream" },
+          });
+          if (!response.ok) throw new Error(`${response.status} from the byte sink`);
+          record(OUTBOUND.length);
+        }
+      }
+
+      function setDirection(next) {
+        if (running) return;
+        direction = next;
+        el("mode-down").setAttribute("aria-pressed", String(next === "down"));
+        el("mode-up").setAttribute("aria-pressed", String(next === "up"));
+        measure();
+      }
+
+      el("mode-down").onclick = () => setDirection("down");
+      el("mode-up").onclick = () => setDirection("up");
+      el("again").onclick = () => measure();
+
+      // Settings come from the node so an operator tunes one place. A node that
+      // does not answer is not a reason to show nothing: the defaults above are
+      // the same ones it would have sent.
+      fetch(INFO, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((info) => {
+          if (info) settings = { ...settings, ...info };
+        })
+        .catch(() => {})
+        .finally(measure);
+    </script>
+  </body>
+</html>
